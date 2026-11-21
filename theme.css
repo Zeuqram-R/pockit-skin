@@ -1,29 +1,106 @@
-/* Pockit skin v1 — modo A+: solo cambia las variables de color de claude.ai (formato HSL "H S% L%").
-   Si claude.ai cambia sus nombres de variables, esto simplemente deja de aplicar y el chat sigue normal.
-   Pa' ajustarlo: Pockit > Ajustes > Diagnóstico del skin, copiar el resultado y pasárselo a Claude. */
+/* Pockit skin v3 — modo A+: solo variables de color de claude.ai.
+   claude.ai usa dos sistemas: las variables nuevas --cds-* (hex) y las viejas --bg/--text/--accent (HSL "H S% L%").
+   Si cambian los nombres, esto deja de aplicar y el chat sigue normal.
+   Pa' ajustar: Pockit > Ajustes > Diagnóstico del skin y pasarle el resultado a Claude. */
 :root, html, body, .dark, [data-theme], [data-mode] {
-  --bg-000: 267 45.5% 17.3% !important; /* #2A1840 tarjetas, composer */
-  --bg-100: 261 50.0% 12.5% !important; /* #1B1030 fondo principal */
-  --bg-200: 261 53.8% 10.2% !important; /* #160C28 */
-  --bg-300: 261 53.5% 8.4% !important;  /* #120A21 */
-  --bg-400: 262 50.0% 6.3% !important;  /* #0E0818 */
-  --bg-500: 260 50.0% 4.7% !important;  /* #0A0612 */
-  --text-000: 34 100.0% 95.1% !important; /* #FFF4E6 crema */
+  /* ---- Fondos (cds) ---- */
+  --cds-page-bg: #1B1030 !important;
+  --cds-surface-0: #0E0818 !important;
+  --cds-surface-1: #1B1030 !important;
+  --cds-surface-2: #241538 !important;
+  --cds-surface-3: #241538 !important;
+  --cds-surface-panel: #241538 !important;
+  --cds-surface-popover: #2E1B47 !important;
+  --cds-tooltip-bg: #2E1B47 !important;
+  --cds-role-tooltip-bg: #0E0818 !important;
+  --cds-scroll-fade-strip-color: #1B1030 !important;
+  --cds-fizzy-lake-color-sidebar: #241538 !important;
+  --cds-bg-editor-canvas: #1B1030 !important;
+  --clint-surface-warm: #2A1840 !important;
+  --cds-bg-neutral: rgba(229, 214, 242, 0.06) !important;
+  --cds-bg-neutral-hover: rgba(229, 214, 242, 0.10) !important;
+  --cds-skeleton-base: rgba(229, 214, 242, 0.08) !important;
+  --cds-skeleton-sheen: rgba(229, 214, 242, 0.08) !important;
+
+  /* Burbuja de tus mensajes: rosa suave */
+  --cds-bg-user-message: rgba(255, 62, 138, 0.16) !important;
+  --cds-bg-user-message-personal: rgba(255, 62, 138, 0.16) !important;
+  --cds-text-user-message-personal: #FF8DB8 !important;
+
+  /* ---- Texto (cds) ---- */
+  --cds-text-primary: #FFF4E6 !important;
+  --cds-text-secondary: #CDB8E0 !important;
+  --cds-text-stays-secondary: #CDB8E0 !important;
+  --cds-text-muted: #9F89BA !important;
+  --cds-fizzy-lake-color-secondary: #CDB8E0 !important;
+  --cds-fizzy-lake-color-plain-secondary: #CDB8E0 !important;
+  --cds-fizzy-lake-color-control-ink: #FFF4E6 !important;
+  --cds-on-primary: #1B1030 !important;
+  --cds-oncolor-200: rgba(255, 244, 230, 0.75) !important;
+  --cds-oncolor-300: rgba(255, 244, 230, 0.50) !important;
+
+  /* ---- Acentos: rosa neón (links, selección) y coral (botón de enviar) ---- */
+  --cds-fill-accent: #FF3E8A !important;
+  --cds-fill-accent-hover: #FF5C9D !important;
+  --cds-text-accent: #FF6FA6 !important;
+  --cds-role-accent-fill: #FF3E8A !important;
+  --cds-role-accent-fill-hover: #FF5C9D !important;
+  --cds-role-accent-450: #FF3E8A !important;
+  --cds-role-accent-400: #FF5C9D !important;
+  --cds-role-accent-300: #FF6FA6 !important;
+  --cds-bg-accent: rgba(255, 62, 138, 0.14) !important;
+  --cds-bg-accent-layer: rgba(255, 62, 138, 0.07) !important;
+  --cds-bg-accent-muted: rgba(255, 62, 138, 0.10) !important;
+  --cds-border-accent: rgba(255, 62, 138, 0.35) !important;
+  --cds-fill-brand: #FF7A45 !important;
+  --cds-fill-brand-hover: #FF9A4A !important;
+  --cds-fill-brand-icon-only: #FF7A45 !important;
+  --cds-fill-button-layer: rgba(255, 62, 138, 0.12) !important;
+  --cds-fill-button-ghost-hover: rgba(255, 62, 138, 0.12) !important;
+  --cds-text-pro: #FFB547 !important;
+  --cds-bg-pro: rgba(255, 181, 71, 0.12) !important;
+  --cds-border-pro: rgba(255, 181, 71, 0.35) !important;
+
+  /* ---- Bordes ---- */
+  --cds-border: rgba(229, 214, 242, 0.08) !important;
+  --cds-border-line: rgba(229, 214, 242, 0.14) !important;
+  --cds-border-line-muted: rgba(229, 214, 242, 0.10) !important;
+  --cds-border-strong: rgba(229, 214, 242, 0.25) !important;
+  --cds-border-stronger: rgba(229, 214, 242, 0.45) !important;
+  --cds-ring-color: rgba(255, 62, 138, 0.25) !important;
+
+  /* ---- Variables viejas (HSL) ---- */
+  --_brand-clay: 19 100% 63.5% !important;
+  --_brand-clay-emphasized: 336 100% 62.2% !important;
+  --brand-000: 336 100% 62.2% !important;
+  --brand-100: 19 100% 63.5% !important;
+  --brand-200: 19 100% 63.5% !important;
+  --accent-000: 337 100% 71.8% !important;
+  --accent-100: 336 100% 62.2% !important;
+  --accent-200: 336 100% 62.2% !important;
+  --accent-900: 327 64.4% 17.6% !important;
+  --bg-000: 267 45.5% 17.3% !important;
+  --bg-100: 261 50.0% 12.5% !important;
+  --bg-200: 261 53.8% 10.2% !important;
+  --bg-300: 261 53.5% 8.4% !important;
+  --bg-400: 262 50.0% 6.3% !important;
+  --bg-500: 260 50.0% 4.7% !important;
+  --text-000: 34 100.0% 95.1% !important;
   --text-100: 34 100.0% 95.1% !important;
-  --text-200: 272 51.9% 89.4% !important; /* #E5D6F2 lila */
+  --text-200: 272 51.9% 89.4% !important;
   --text-300: 268 38.5% 77.1% !important;
   --text-400: 267 26.2% 63.3% !important;
   --text-500: 266 18.7% 50.8% !important;
-  --accent-brand: 336 100.0% 62.2% !important; /* #FF3E8A rosa neón */
+  --accent-brand: 336 100.0% 62.2% !important;
   --accent-main-000: 336 100.0% 68.0% !important;
   --accent-main-100: 336 100.0% 62.2% !important;
   --accent-main-200: 337 100.0% 71.8% !important;
   --accent-main-900: 327 64.4% 17.6% !important;
-  --accent-secondary-000: 174 62.2% 57.5% !important; /* #2EC4B6 teal */
+  --accent-secondary-000: 174 62.2% 57.5% !important;
   --accent-secondary-100: 174 62.0% 47.5% !important;
   --accent-secondary-200: 174 62.3% 40.6% !important;
   --accent-secondary-900: 175 61.1% 14.1% !important;
-  --accent-pro-000: 36 100.0% 71.0% !important; /* #FFB547 sunset */
+  --accent-pro-000: 36 100.0% 71.0% !important;
   --accent-pro-100: 36 100.0% 63.9% !important;
   --accent-pro-200: 27 100.0% 64.5% !important;
   --accent-pro-900: 29 72.1% 16.9% !important;
