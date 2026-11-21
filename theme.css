@@ -1,22 +1,22 @@
-/* Pockit skin v3 — modo A+: solo variables de color de claude.ai.
+/* Pockit skin v5 (morados del menú de GTA VI) — modo A+: solo variables de color de claude.ai.
    claude.ai usa dos sistemas: las variables nuevas --cds-* (hex) y las viejas --bg/--text/--accent (HSL "H S% L%").
    Si cambian los nombres, esto deja de aplicar y el chat sigue normal.
    Pa' ajustar: Pockit > Ajustes > Diagnóstico del skin y pasarle el resultado a Claude. */
 :root, html, body, .dark, [data-theme], [data-mode] {
   /* ---- Fondos (cds) ---- */
-  --cds-page-bg: #1B1030 !important;
-  --cds-surface-0: #0E0818 !important;
-  --cds-surface-1: #1B1030 !important;
-  --cds-surface-2: #241538 !important;
-  --cds-surface-3: #241538 !important;
-  --cds-surface-panel: #241538 !important;
-  --cds-surface-popover: #2E1B47 !important;
-  --cds-tooltip-bg: #2E1B47 !important;
-  --cds-role-tooltip-bg: #0E0818 !important;
-  --cds-scroll-fade-strip-color: #1B1030 !important;
-  --cds-fizzy-lake-color-sidebar: #241538 !important;
-  --cds-bg-editor-canvas: #1B1030 !important;
-  --clint-surface-warm: #2A1840 !important;
+  --cds-page-bg: #2B1E92 !important;
+  --cds-surface-0: #1A1066 !important;
+  --cds-surface-1: #2B1E92 !important;
+  --cds-surface-2: #3826A6 !important;
+  --cds-surface-3: #3826A6 !important;
+  --cds-surface-panel: #3826A6 !important;
+  --cds-surface-popover: #4A2DB8 !important;
+  --cds-tooltip-bg: #4A2DB8 !important;
+  --cds-role-tooltip-bg: #1A1066 !important;
+  --cds-scroll-fade-strip-color: #2B1E92 !important;
+  --cds-fizzy-lake-color-sidebar: #3826A6 !important;
+  --cds-bg-editor-canvas: #2B1E92 !important;
+  --clint-surface-warm: #33229E !important;
   --cds-bg-neutral: rgba(229, 214, 242, 0.06) !important;
   --cds-bg-neutral-hover: rgba(229, 214, 242, 0.10) !important;
   --cds-skeleton-base: rgba(229, 214, 242, 0.08) !important;
@@ -35,7 +35,7 @@
   --cds-fizzy-lake-color-secondary: #CDB8E0 !important;
   --cds-fizzy-lake-color-plain-secondary: #CDB8E0 !important;
   --cds-fizzy-lake-color-control-ink: #FFF4E6 !important;
-  --cds-on-primary: #1B1030 !important;
+  --cds-on-primary: #1A1066 !important;
   --cds-oncolor-200: rgba(255, 244, 230, 0.75) !important;
   --cds-oncolor-300: rgba(255, 244, 230, 0.50) !important;
 
@@ -79,12 +79,12 @@
   --accent-100: 336 100% 62.2% !important;
   --accent-200: 336 100% 62.2% !important;
   --accent-900: 327 64.4% 17.6% !important;
-  --bg-000: 267 45.5% 17.3% !important;
-  --bg-100: 261 50.0% 12.5% !important;
-  --bg-200: 261 53.8% 10.2% !important;
-  --bg-300: 261 53.5% 8.4% !important;
-  --bg-400: 262 50.0% 6.3% !important;
-  --bg-500: 260 50.0% 4.7% !important;
+  --bg-000: 248 62.7% 40.0% !important;
+  --bg-100: 247 65.9% 34.5% !important;
+  --bg-200: 247 67.3% 31.2% !important;
+  --bg-300: 247 69.0% 27.8% !important;
+  --bg-400: 247 72.9% 23.1% !important;
+  --bg-500: 247 74.5% 18.4% !important;
   --text-000: 34 100.0% 95.1% !important;
   --text-100: 34 100.0% 95.1% !important;
   --text-200: 272 51.9% 89.4% !important;
