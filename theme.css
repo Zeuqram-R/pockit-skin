@@ -39,7 +39,7 @@
   --cds-oncolor-200: rgba(255, 244, 230, 0.75) !important;
   --cds-oncolor-300: rgba(255, 244, 230, 0.50) !important;
 
-  /* ---- Acentos: rosa neón (links, selección) y coral (botón de enviar) ---- */
+  /* ---- Acentos: rosa neón (links, selección) y rosa también en el botón de enviar ---- */
   --cds-fill-accent: #FF3E8A !important;
   --cds-fill-accent-hover: #FF5C9D !important;
   --cds-text-accent: #FF6FA6 !important;
@@ -52,9 +52,9 @@
   --cds-bg-accent-layer: rgba(255, 62, 138, 0.07) !important;
   --cds-bg-accent-muted: rgba(255, 62, 138, 0.10) !important;
   --cds-border-accent: rgba(255, 62, 138, 0.35) !important;
-  --cds-fill-brand: #FF7A45 !important;
-  --cds-fill-brand-hover: #FF9A4A !important;
-  --cds-fill-brand-icon-only: #FF7A45 !important;
+  --cds-fill-brand: #FF3E8A !important;
+  --cds-fill-brand-hover: #FF5C9D !important;
+  --cds-fill-brand-icon-only: #FF3E8A !important;
   --cds-fill-button-layer: rgba(255, 62, 138, 0.12) !important;
   --cds-fill-button-ghost-hover: rgba(255, 62, 138, 0.12) !important;
   --cds-text-pro: #FFB547 !important;
@@ -70,11 +70,11 @@
   --cds-ring-color: rgba(255, 62, 138, 0.25) !important;
 
   /* ---- Variables viejas (HSL) ---- */
-  --_brand-clay: 19 100% 63.5% !important;
+  --_brand-clay: 336 100% 62.2% !important;
   --_brand-clay-emphasized: 336 100% 62.2% !important;
   --brand-000: 336 100% 62.2% !important;
-  --brand-100: 19 100% 63.5% !important;
-  --brand-200: 19 100% 63.5% !important;
+  --brand-100: 336 100% 62.2% !important;
+  --brand-200: 337 100% 71.8% !important;
   --accent-000: 337 100% 71.8% !important;
   --accent-100: 336 100% 62.2% !important;
   --accent-200: 336 100% 62.2% !important;
