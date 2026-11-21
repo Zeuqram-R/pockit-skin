@@ -1,1 +1,37 @@
-/* Pockit skin v1 */
+/* Pockit skin v1 — modo A+: solo cambia las variables de color de claude.ai (formato HSL "H S% L%").
+   Si claude.ai cambia sus nombres de variables, esto simplemente deja de aplicar y el chat sigue normal.
+   Pa' ajustarlo: Pockit > Ajustes > Diagnóstico del skin, copiar el resultado y pasárselo a Claude. */
+:root, html, body, .dark, [data-theme], [data-mode] {
+  --bg-000: 267 45.5% 17.3% !important; /* #2A1840 tarjetas, composer */
+  --bg-100: 261 50.0% 12.5% !important; /* #1B1030 fondo principal */
+  --bg-200: 261 53.8% 10.2% !important; /* #160C28 */
+  --bg-300: 261 53.5% 8.4% !important;  /* #120A21 */
+  --bg-400: 262 50.0% 6.3% !important;  /* #0E0818 */
+  --bg-500: 260 50.0% 4.7% !important;  /* #0A0612 */
+  --text-000: 34 100.0% 95.1% !important; /* #FFF4E6 crema */
+  --text-100: 34 100.0% 95.1% !important;
+  --text-200: 272 51.9% 89.4% !important; /* #E5D6F2 lila */
+  --text-300: 268 38.5% 77.1% !important;
+  --text-400: 267 26.2% 63.3% !important;
+  --text-500: 266 18.7% 50.8% !important;
+  --accent-brand: 336 100.0% 62.2% !important; /* #FF3E8A rosa neón */
+  --accent-main-000: 336 100.0% 68.0% !important;
+  --accent-main-100: 336 100.0% 62.2% !important;
+  --accent-main-200: 337 100.0% 71.8% !important;
+  --accent-main-900: 327 64.4% 17.6% !important;
+  --accent-secondary-000: 174 62.2% 57.5% !important; /* #2EC4B6 teal */
+  --accent-secondary-100: 174 62.0% 47.5% !important;
+  --accent-secondary-200: 174 62.3% 40.6% !important;
+  --accent-secondary-900: 175 61.1% 14.1% !important;
+  --accent-pro-000: 36 100.0% 71.0% !important; /* #FFB547 sunset */
+  --accent-pro-100: 36 100.0% 63.9% !important;
+  --accent-pro-200: 27 100.0% 64.5% !important;
+  --accent-pro-900: 29 72.1% 16.9% !important;
+  --border-100: 272 51.9% 89.4% !important;
+  --border-200: 272 51.9% 89.4% !important;
+  --border-300: 272 51.9% 89.4% !important;
+  --border-400: 272 51.9% 89.4% !important;
+  --oncolor-100: 0 0.0% 100.0% !important;
+  --oncolor-200: 34 100.0% 95.1% !important;
+  --oncolor-300: 34 100.0% 95.1% !important;
+}
