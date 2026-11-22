@@ -1,9 +1,9 @@
-/* Pockit chat v14 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v15 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 14;
+  var VERSION = 15;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -60,6 +60,8 @@
        así el cursor no se desalinea (WebKit lo mueve si la caja editable tiene desenfoque o está dentro de algo con efectos). */
     "[data-cds-part='composer-card'] .ProseMirror{background:transparent !important;border:none !important;box-shadow:none !important;position:relative !important;z-index:1 !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;color:#FFFFFF !important;caret-color:#FFFFFF !important}",
     "[data-cds-part='composer-card'] .ProseMirror *{color:#FFFFFF !important}",
+    /* v15: la regla que vuelve transparente todo dentro de la tarjeta también le quitaba el rosa al vidrio */
+    "[data-cds-part='composer-card'] .pk-glass.pk-glass{background-color:rgba(203,132,248,.72) !important;border-color:rgba(255,255,255,.3) !important;box-shadow:0 2px 12px rgba(0,0,0,.18) !important}",
     ".pk-glass{position:absolute;pointer-events:none;z-index:0;background:rgba(203,132,248,.72);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);border:1px solid rgba(255,255,255,.3);border-radius:20px 20px 6px 20px;box-shadow:0 2px 12px rgba(0,0,0,.18)}",
     /* v11: el historial pasa limpio por detrás de la caja (sin franjas, máscaras ni fondos de claude.ai) */
     "[data-testid='chat-extra-space']{height:0 !important;min-height:0 !important;flex:0 0 0px !important}",
@@ -297,6 +299,10 @@
     var top;
     if (r.left < 14 + w + 10) top = r.top - h - 8;          // tu burbuja llegó: subir encima
     else top = r.bottom - h;                                 // a la par, alineados abajo como en iMessage
+    var mode = r.left < 14 + w + 10 ? "above" : "beside";
+    // solo se anima cuando sube/baja por tu burbuja; si la caja se mueve (scroll, teclado) la siguen al instante
+    dots.style.transition = dots.dataset.mode && dots.dataset.mode !== mode ? "" : "none";
+    dots.dataset.mode = mode;
     var px = Math.round(top) + "px";
     if (dots.style.top !== px) dots.style.top = px;
   }
@@ -390,14 +396,7 @@
       dock.style.setProperty("transform", want ? "translateY(" + Math.round(want) + "px)" : "none", "important");
     }
     var sc = scroller();
-    if (sc) {
-      var pad = KB ? Math.round(-want) : 0;
-      if (sc.dataset.pkKb !== String(pad)) {
-        sc.dataset.pkKb = String(pad);
-        sc.style.setProperty("padding-bottom", pad ? pad + "px" : "", pad ? "important" : "");
-        if (pad) sc.scrollTop = sc.scrollHeight;
-      }
-    }
+    if (sc && sc.dataset.pkKb !== String(EXT + (KB ? Math.round(-want) : 0))) applyPad(sc);
   }
   function syncGlass() {
     var pm = document.querySelector("[data-cds-part='composer-card'] .ProseMirror");
@@ -452,8 +451,38 @@
         a.style.setProperty("mask-image", "none", "important");
       }
     }
+    extendScroller();
     if (KB) placeDock();
   }
+  // v15: el historial llega hasta abajo del todo (detrás de la caja y los controles), no se corta a media burbuja.
+  var EXT = 0;
+  function extendScroller() {
+    var sc = scroller();
+    if (!sc) return;
+    var r = sc.getBoundingClientRect();
+    var naturalBottom = r.bottom - EXT;
+    var h = Math.max(0, Math.round(window.innerHeight - naturalBottom));
+    if (Math.abs(h - EXT) < 2) return;
+    var naturalHeight = r.height - EXT;
+    EXT = h;
+    if (h) {
+      sc.style.setProperty("height", (naturalHeight + h) + "px", "important");
+      sc.style.setProperty("max-height", "none", "important");
+      sc.style.setProperty("margin-bottom", (-h) + "px", "important");
+    } else {
+      ["height", "max-height", "margin-bottom"].forEach(function (p) { sc.style.removeProperty(p); });
+    }
+    applyPad(sc);
+  }
+  function applyPad(sc) {
+    var kb = KB ? Math.round(-dockShift) : 0;
+    var pad = EXT + kb;
+    var was = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 40;
+    sc.style.setProperty("padding-bottom", pad ? pad + "px" : "", pad ? "important" : "");
+    sc.dataset.pkKb = String(pad);
+    if (was) sc.scrollTop = sc.scrollHeight;
+  }
+  window.addEventListener("resize", function () { EXT = -1; try { var sc = scroller(); if (sc) { ["height","max-height","margin-bottom"].forEach(function (p) { sc.style.removeProperty(p); }); EXT = 0; extendScroller(); } } catch (e) {} });
   window.addEventListener("scroll", function () { try { typingDots(); } catch (e) {} }, true);
 
   // Avisa a Pockit si Marisol está escribiendo (pa' mostrar el botón de detener en la caja nativa).
