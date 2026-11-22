@@ -1,9 +1,9 @@
-/* Pockit chat v20 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v21 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 20;
+  var VERSION = 21;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -456,6 +456,7 @@
     if (!card) return;
     // fondos sueltos en la cadena de la caja (menos la burbuja rosa)
     var dock = dockOf(card);
+    dock.classList.add("pk-dock");
     for (var el = card; el && el !== dock.parentElement; el = el.parentElement) {
       el.style.setProperty("background-color", "transparent", "important");
       el.style.setProperty("background-image", "none", "important");
