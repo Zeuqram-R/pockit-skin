@@ -1,9 +1,9 @@
-/* Pockit chat v19 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v20 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 19;
+  var VERSION = 20;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -82,6 +82,11 @@
     "[data-cds='ChatComposer'] button:not([data-testid='chat-input-send']), [data-cds='ChatComposer'] button:not([data-testid='chat-input-send']) *{color:#FFFFFF !important;opacity:1 !important;background-color:transparent !important;box-shadow:none !important}",
     "[data-cds='ChatComposer'] button svg{color:#FFFFFF !important;opacity:1 !important}",
     "[data-cds='ChatComposer'] fieldset, [data-cds='ChatComposer'] fieldset > *{background:transparent !important;border-color:transparent !important}",
+    /* v20: TODO lo de la caja de claude.ai sin fondo (solo queda la burbuja de vidrio y el botón de enviar) */
+    ".pk-dock, .pk-dock::before, .pk-dock::after, .pk-dock *:not(.pk-glass):not([data-testid='chat-input-send']):not([data-testid='chat-input-send'] *), .pk-dock *:not(.pk-glass)::before, .pk-dock *:not(.pk-glass)::after{background-color:transparent !important;background-image:none !important;box-shadow:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important}",
+    /* v20: solo la burbuja y los botones reciben toques; el resto del área deja pasar el toque al chat */
+    ".pk-dock, .pk-dock *{pointer-events:none !important}",
+    ".pk-dock button, .pk-dock button *, .pk-dock [role='button'], .pk-dock .ProseMirror, .pk-dock .ProseMirror *, .pk-dock input, .pk-dock a, .pk-dock select, .pk-dock label{pointer-events:auto !important}",
     ".pk-dock{transition:transform .28s cubic-bezier(.2,.8,.2,1) !important}",
     ".pk-typing i{width:8px;height:8px;border-radius:50%;background:#E5D6F2;opacity:.35;animation:pkDot 1.2s infinite ease-in-out}",
     ".pk-typing i:nth-child(2){animation-delay:.18s}.pk-typing i:nth-child(3){animation-delay:.36s}",
@@ -736,7 +741,19 @@
         var stk = card ? dockOf(card) : null;
         if (stk) Array.prototype.forEach.call(stk.children, function (k) { var ck = getComputedStyle(k), rk = k.getBoundingClientRect();
           stickyKids.push((k.getAttribute("data-testid") || k.tagName.toLowerCase() + "." + String(k.className).slice(0, 40)) + " " + Math.round(rk.top) + "-" + Math.round(rk.bottom) + " bg=" + ck.backgroundColor + " op=" + ck.opacity + " pos=" + ck.position); });
-        return { masks: masks, stickyKids: stickyKids, innerHeight: window.innerHeight, vh: VH, docH: document.documentElement.clientHeight, scrollY: window.scrollY, kb: KB, chain: out, dockChain: dockChain,
+        var probe = [];
+        if (card) {
+          var cr = card.getBoundingClientRect();
+          [[20, cr.top + 8], [20, cr.bottom + 12], [Math.round(window.innerWidth / 2), cr.bottom + 12]].forEach(function (pt) {
+            var els = document.elementsFromPoint(pt[0], pt[1]).slice(0, 10).map(function (e) {
+              var c = getComputedStyle(e);
+              return (e.getAttribute("data-testid") || e.tagName.toLowerCase() + "." + String(e.className).slice(0, 30)) + " bg=" + c.backgroundColor +
+                (c.webkitBackdropFilter && c.webkitBackdropFilter !== "none" ? " wblur=" + c.webkitBackdropFilter : "") + " op=" + c.opacity + " vis=" + c.visibility;
+            });
+            probe.push({ at: pt.map(Math.round).join(","), stack: els });
+          });
+        }
+        return { probe: probe, masks: masks, stickyKids: stickyKids, innerHeight: window.innerHeight, vh: VH, docH: document.documentElement.clientHeight, scrollY: window.scrollY, kb: KB, chain: out, dockChain: dockChain,
           card: card ? Math.round(card.getBoundingClientRect().top) + "-" + Math.round(card.getBoundingClientRect().bottom) : null };
       })(),
       composerSkeleton: (function(){ var c = document.querySelector("[data-cds-part='composer-card']"); return c ? skeleton(c, 0).slice(0, 3000) : null; })(),
