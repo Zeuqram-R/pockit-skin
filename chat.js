@@ -1,9 +1,9 @@
-/* Pockit chat v16 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v17 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 16;
+  var VERSION = 17;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -69,6 +69,12 @@
     "[data-testid='transcript-bottom-gap']{background:transparent !important}",
     "[data-composer-card-holder], [data-cds-dock-group], [data-cds='ChatComposer']{background:transparent !important;background-color:transparent !important;background-image:none !important;box-shadow:none !important}",
     "[data-testid='pane-scroller'], [data-testid='primary-pane'], [data-testid='chat-column'], [data-testid='chat-column-body'], [data-testid='transcript-list'], [data-cds-dock-masked]{-webkit-mask-image:none !important;mask-image:none !important}",
+    /* v17: alto real visible (lo pone updateVH) */
+    "html.cds-root, html.cds-root body{height:var(--pk-vh,100vh) !important;min-height:0 !important;max-height:var(--pk-vh,100vh) !important;overflow:hidden !important}",
+    ".h-screen, .h-dvh, .h-svh, .h-lvh{height:var(--pk-vh,100vh) !important}",
+    ".min-h-screen, .min-h-dvh, .min-h-svh{min-height:var(--pk-vh,100vh) !important}",
+    ".max-h-screen, .max-h-dvh{max-height:var(--pk-vh,100vh) !important}",
+    ".pk-clear, .pk-clear::before, .pk-clear::after{background-color:transparent !important;background-image:none !important;box-shadow:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;-webkit-mask-image:none !important;mask-image:none !important}",
     ".pk-dock{transition:transform .28s cubic-bezier(.2,.8,.2,1) !important;will-change:transform}",
     ".pk-typing i{width:8px;height:8px;border-radius:50%;background:#E5D6F2;opacity:.35;animation:pkDot 1.2s infinite ease-in-out}",
     ".pk-typing i:nth-child(2){animation-delay:.18s}.pk-typing i:nth-child(3){animation-delay:.36s}",
@@ -387,7 +393,7 @@
     dock.classList.add("pk-dock");
     // dónde quedaría la caja sin nuestro empujón
     var natural = card.getBoundingClientRect().bottom - dockShift;
-    var target = window.innerHeight - KB - 6;
+    var target = (VH || window.innerHeight) - KB - 6;
     // también los controles (+, modelo) van encima del teclado: medimos el fondo del dock entero
     var dockBottom = dock.getBoundingClientRect().bottom - dockShift;
     var want = KB ? Math.min(0, target - Math.max(natural, dockBottom)) : 0;
@@ -396,7 +402,7 @@
       dock.style.setProperty("transform", want ? "translateY(" + Math.round(want) + "px)" : "none", "important");
     }
     var sc = scroller();
-    if (sc && sc.dataset.pkKb !== String(EXT + (KB ? Math.round(-want) : 0))) applyPad(sc);
+    if (sc && sc.dataset.pkKb !== String(KB ? Math.round(-want) : 0)) applyPad(sc);
   }
   function syncGlass() {
     var pm = document.querySelector("[data-cds-part='composer-card'] .ProseMirror");
@@ -456,66 +462,42 @@
   }
   // v15: el historial llega hasta abajo del todo (detrás de la caja y los controles), no se corta a media burbuja.
   var EXT = 0;
-  // v16: se estira toda la cadena (el scroll y sus contenedores) hasta el fondo, no solo el scroll,
-  // porque un contenedor de más arriba era el que cortaba el historial a media burbuja.
-  function chainOf(sc, card) {
-    var chain = [];
-    for (var el = sc; el && el !== document.body; el = el.parentElement) {
-      if (card && el.contains(card)) break;
-      chain.push(el);
+  // v17: la página de claude.ai medía más alto que lo que se ve (100vh en WKWebView), así que la caja quedaba
+  // más abajo de lo visible y el historial "se cortaba". Fijamos el alto de la página al alto real visible.
+  var VH = 0;
+  function updateVH() {
+    if (KB || Date.now() < kbUntil) return;
+    var h = Math.round(window.innerHeight);
+    if (h > 200 && h !== VH) {
+      VH = h;
+      document.documentElement.style.setProperty("--pk-vh", h + "px");
     }
-    return chain;
   }
-  function extendScroller() {
-    var sc = scroller();
+  function extendScroller() { updateVH(); clearDockBackgrounds(); }
+  // quita fondos (también los ::before/::after) entre la caja y el área con scroll, y capas decorativas hermanas
+  function clearDockBackgrounds() {
     var card = document.querySelector("[data-cds-part='composer-card']");
-    if (!sc) return;
-    var chain = chainOf(sc, card);
-    var top = chain[chain.length - 1];
-    var r = top.getBoundingClientRect();
-    var naturalBottom = r.bottom - EXT;
-    var h = Math.max(0, Math.round(window.innerHeight - naturalBottom));
-    if (Math.abs(h - EXT) < 2) return;
-    chain.forEach(function (el) {
-      var nat = el.dataset.pkNatH ? parseFloat(el.dataset.pkNatH) : el.getBoundingClientRect().height;
-      el.dataset.pkNatH = String(nat);
-      if (h) {
-        el.style.setProperty("height", (nat + h) + "px", "important");
-        el.style.setProperty("max-height", "none", "important");
-      } else { el.style.removeProperty("height"); el.style.removeProperty("max-height"); }
-    });
-    if (h) {
-      top.style.setProperty("margin-bottom", (-h) + "px", "important");
-      if (getComputedStyle(top).position === "static") top.style.setProperty("position", "relative");
-      top.style.setProperty("z-index", "0");
-      var dock = card ? dockOf(card) : null;
-      var branch = dock;
-      while (branch && branch.parentElement && branch.parentElement !== top.parentElement) branch = branch.parentElement;
-      if (branch && branch.parentElement === top.parentElement) {
-        if (getComputedStyle(branch).position === "static") branch.style.setProperty("position", "relative");
-        branch.style.setProperty("z-index", "2");
-      }
-    } else top.style.removeProperty("margin-bottom");
-    EXT = h;
-    applyPad(sc);
+    var sc = scroller();
+    if (!card || !sc) return;
+    for (var el = card.parentElement; el && el !== sc; el = el.parentElement) {
+      el.classList.add("pk-clear");
+      Array.prototype.forEach.call(el.children, function (k) {
+        if (k.contains(card) || k.classList.contains("pk-glass")) return;
+        var cs = getComputedStyle(k);
+        if ((cs.position === "absolute" || cs.position === "fixed") && !(k.textContent || "").trim() && !k.querySelector("button, svg, img")) k.classList.add("pk-clear");
+      });
+    }
   }
   function applyPad(sc) {
     var kb = KB ? Math.round(-dockShift) : 0;
-    var pad = EXT + kb;
+    var pad = kb;
     var was = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 40;
     sc.style.setProperty("padding-bottom", pad ? pad + "px" : "", pad ? "important" : "");
     sc.dataset.pkKb = String(pad);
     if (was) sc.scrollTop = sc.scrollHeight;
   }
-  window.addEventListener("resize", function () {
-    try {
-      document.querySelectorAll("[data-pk-nat-h]").forEach(function (el) {
-        ["height", "max-height", "margin-bottom"].forEach(function (p) { el.style.removeProperty(p); });
-        el.removeAttribute("data-pk-nat-h");
-      });
-      EXT = 0; extendScroller();
-    } catch (e) {}
-  });
+  window.addEventListener("resize", function () { try { updateVH(); } catch (e) {} });
+  setTimeout(function () { try { updateVH(); } catch (e) {} }, 300);
   window.addEventListener("scroll", function () { try { typingDots(); } catch (e) {} }, true);
 
   // Avisa a Pockit si Marisol está escribiendo (pa' mostrar el botón de detener en la caja nativa).
@@ -718,7 +700,14 @@
             (card && el.contains(card) ? " [contiene caja]" : ""));
           if (card && el.contains(card)) break;
         }
-        return { innerHeight: window.innerHeight, ext: EXT, chain: out,
+        var dockChain = [];
+        for (var e2 = card; e2 && e2 !== sc && e2 !== document.body; e2 = e2.parentElement) {
+          var c2 = getComputedStyle(e2), b4 = getComputedStyle(e2, "::before"), af = getComputedStyle(e2, "::after"), r2 = e2.getBoundingClientRect();
+          dockChain.push((e2.getAttribute("data-testid") || e2.tagName.toLowerCase() + "." + String(e2.className).slice(0, 50)) + " " + Math.round(r2.top) + "-" + Math.round(r2.bottom) +
+            " bg=" + c2.backgroundColor + (c2.backgroundImage !== "none" ? " img" : "") + " pos=" + c2.position + (c2.backdropFilter && c2.backdropFilter !== "none" ? " blur" : "") +
+            (b4.content !== "none" ? " ::before bg=" + b4.backgroundColor : "") + (af.content !== "none" ? " ::after bg=" + af.backgroundColor : ""));
+        }
+        return { innerHeight: window.innerHeight, vh: VH, docH: document.documentElement.clientHeight, scrollY: window.scrollY, kb: KB, chain: out, dockChain: dockChain,
           card: card ? Math.round(card.getBoundingClientRect().top) + "-" + Math.round(card.getBoundingClientRect().bottom) : null };
       })(),
       composerSkeleton: (function(){ var c = document.querySelector("[data-cds-part='composer-card']"); return c ? skeleton(c, 0).slice(0, 3000) : null; })(),
