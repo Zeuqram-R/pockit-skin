@@ -1,9 +1,9 @@
-/* Pockit chat v6 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v7 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 6;
+  var VERSION = 7;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -15,6 +15,9 @@
   var CSS = [
     /* Selectores reales de claude.ai (sacados del diagnóstico de Jose, nov 2026). Van por CSS pa' que se apliquen al instante. */
     ":root, html{--cds-bg-user-message:#CB84F8 !important;--cds-bg-user-message-personal:#CB84F8 !important;--cds-text-user-message-personal:#1A1066 !important;--font-claude-response:PockitFigtree, -apple-system, system-ui, sans-serif !important;--font-user-message:PockitFigtree, -apple-system, system-ui, sans-serif !important}",
+    /* La caja de escribir de claude.ai queda invisible (Pockit pone la suya, estilo iMessage) pero sigue funcionando por dentro. */
+    "[data-cds='ChatComposer'], [data-composer-card-holder], [data-testid='hub-composer-notices']{opacity:0 !important;pointer-events:none !important}",
+    "[data-testid='sidebar-compact-trigger']{display:none !important}",
     "[data-testid='chat-header'], [data-testid='chat-footer-row'], [data-testid='action-bar-read-aloud'], [data-testid='action-bar-retry'], [data-testid='user-message-actions'], [data-testid='assistant-message'] [class*='group/status'], button[aria-label='Buena respuesta'], button[aria-label='Mala respuesta'], button[aria-label='Good response'], button[aria-label='Bad response']{display:none !important}",
     "[data-testid='assistant-message'] .prose{background:#3826A6 !important;color:#FFFFFF !important;border-radius:20px 20px 20px 6px !important;padding:12px 16px !important;margin-right:auto !important;width:fit-content !important;max-width:90% !important;box-shadow:0 1px 0 rgba(0,0,0,.18) !important}",
     "[data-testid='assistant-message'] .prose *:not(pre):not(code):not(pre *){font-family:PockitFigtree, -apple-system, system-ui, sans-serif !important}",
@@ -262,6 +265,21 @@
     });
   }
 
+  // Avisa a Pockit si Marisol está escribiendo (pa' mostrar el botón de detener en la caja nativa).
+  var lastStreaming = null;
+  function reportStreaming() {
+    var on = !!document.querySelector("[data-testid='assistant-message'][data-is-streaming='true']");
+    if (on === lastStreaming) return;
+    lastStreaming = on;
+    try { window.webkit.messageHandlers.pockit.postMessage({ type: "streaming", on: on }); } catch (e) {}
+  }
+
+  window.pockitStop = function () {
+    var b = document.querySelector("button[aria-label*='Detener' i], button[aria-label*='Stop' i], button[aria-label*='Parar' i]");
+    if (b) { b.click(); return true; }
+    return false;
+  };
+
   // Adjuntar un archivo desde Pockit (foto o archivo) al input de claude.ai.
   window.pockitAttach = function (name, mime, b64) {
     try {
@@ -351,6 +369,7 @@
       if (n.querySelector(".prose, [data-testid='user-message'], [data-testid='assistant-message'], [data-cds-part='composer-card'], .ProseMirror")) n.classList.remove("pk-hide");
     });
     typingDots();
+    reportStreaming();
     findClaudeNotices().forEach(function (n) { n.classList.add("pk-hide"); });
     sendProjectChats();
     undoNewChatScreen();
@@ -367,7 +386,7 @@
 
   try { tag(); } catch (e) {}
   var observer = new MutationObserver(schedule);
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-is-streaming"] });
   window.__pockitChat.stop = function () {
     observer.disconnect();
     var st = document.getElementById("pockit-chat5");
