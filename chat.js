@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 32;
+  var VERSION = 33;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -89,7 +89,13 @@
     ".pk-dock.pk-dock button.pk-gl.pk-gl.pk-gl.pk-gl{height:28px !important;border-radius:14px 0 0 14px !important;border-right:none !important;margin-right:0 !important;padding-left:10px !important;padding-right:4px !important}",
     ".pk-dock.pk-dock button.pk-gr.pk-gr.pk-gr.pk-gr{height:28px !important;border-radius:0 14px 14px 0 !important;border-left:none !important;margin-left:-1px !important;padding-left:4px !important;padding-right:10px !important}",
     /* v30: con adjuntos la burbuja ocupa todo el ancho (adjunto arriba, texto abajo) */
-    "[data-cds-part='composer-card'].pk-hasatt .ProseMirror{width:100% !important;max-width:100% !important;margin-left:0 !important}",
+    /* v33: adjuntos en fila con scroll de lado, sin meterse debajo del botón de enviar */
+    ".pk-dock.pk-dock .pk-attrow.pk-attrow{display:flex !important;flex-wrap:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;-webkit-overflow-scrolling:touch;touch-action:pan-x;scrollbar-width:none;gap:8px;pointer-events:auto !important;position:relative;z-index:1}",
+    ".pk-attrow::-webkit-scrollbar{display:none}",
+    ".pk-dock.pk-dock .pk-attrow > *{flex:0 0 auto !important}",
+    ".pk-dock.pk-dock .pk-attrow, .pk-dock.pk-dock .pk-attrow *{pointer-events:auto !important}",
+    /* v33: el chevron solo (cuando no está la onda) también va en rectángulo */
+    ".pk-dock.pk-dock button.pk-solo.pk-solo.pk-solo.pk-solo{display:inline-flex !important;align-items:center !important;justify-content:center !important;height:28px !important;min-width:34px !important;padding:0 8px !important;box-sizing:border-box !important;border-radius:14px !important}",
     "[data-cds-part='composer-card'].pk-hasatt [data-testid='file-thumbnail']{position:relative;z-index:1}",
     /* v30: íconos de los círculos más grandes y bien centrados */
     /* v31: enviar/detener. El botón es transparente; detrás va una capa (.pk-sendbg) que cambia de forma:
@@ -108,7 +114,7 @@
     ".pk-dock.pk-dock .pk-group.pk-group.pk-group{display:inline-flex !important;align-items:center !important;height:28px !important;background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:14px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding:0 4px !important;gap:0 !important}",
     "[data-cds='ChatComposer'] fieldset, [data-cds='ChatComposer'] fieldset > *{background:transparent !important;border-color:transparent !important}",
     /* v20: TODO lo de la caja de claude.ai sin fondo (solo queda la burbuja de vidrio y el botón de enviar) */
-    ".pk-dock, .pk-dock::before, .pk-dock::after, .pk-dock *:not(.pk-glass):not([data-testid='chat-input-send']):not([data-testid='chat-input-send'] *), .pk-dock *:not(.pk-glass)::before, .pk-dock *:not(.pk-glass)::after{background-color:transparent !important;background-image:none !important;box-shadow:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important}",
+    ".pk-dock, .pk-dock::before, .pk-dock::after, .pk-dock *:not(.pk-glass):not(.pk-sendbg):not([data-testid='chat-input-send']):not([data-testid='chat-input-send'] *), .pk-dock *:not(.pk-glass)::before, .pk-dock *:not(.pk-glass)::after{background-color:transparent !important;background-image:none !important;box-shadow:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important}",
     /* v20: solo la burbuja y los botones reciben toques; el resto del área deja pasar el toque al chat */
     ".pk-dock, .pk-dock *{pointer-events:none !important}",
     ".pk-dock button, .pk-dock button *, .pk-dock [role='button'], .pk-dock .ProseMirror, .pk-dock .ProseMirror *, .pk-dock input, .pk-dock a, .pk-dock select, .pk-dock label{pointer-events:auto !important}",
@@ -401,18 +407,42 @@
     return card.closest("[data-composer-card-holder]") || card;
   }
   var KB = 0, kbUntil = 0, kbLoop = null;
-  window.pockitKeyboard = function (h) {
+  var KBDUR = 0.4;
+  window.pockitKeyboard = function (h, dur) {
     KB = Math.max(0, h || 0);
+    // v33: la caja se mueve al mismo ritmo y con la misma curva que el teclado de iOS
+    KBDUR = Math.max(0.3, Math.min(0.6, (dur || 0.25) + 0.1));
     kbUntil = Date.now() + 900;
+    try { pinPage(); } catch (e) {}
     if (!kbLoop) {
       var step = function () {
-        try { placeDock(); } catch (e) {}
+        try { pinPage(); placeDock(); } catch (e) {}
         if (Date.now() < kbUntil) kbLoop = requestAnimationFrame(step); else kbLoop = null;
       };
       kbLoop = requestAnimationFrame(step);
     }
   };
   var dockShift = 0;
+  function currentShift(el) {
+    var t = getComputedStyle(el).transform;
+    if (!t || t === "none") return 0;
+    var m = t.match(/matrix(3d)?\(([^)]+)\)/);
+    if (!m) return 0;
+    var v = m[2].split(",").map(parseFloat);
+    return m[1] ? (v[13] || 0) : (v[5] || 0);
+  }
+  // v33: WebKit intenta subir la página entera al abrir/cerrar el teclado y eso, sumado a nuestro empujón,
+  // hacía que la caja brincara de más y luego cayera. La página se queda quieta; solo se mueve la caja.
+  function pinPage() {
+    if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
+    var se = document.scrollingElement || document.documentElement;
+    if (se && se.scrollTop) se.scrollTop = 0;
+    if (document.body && document.body.scrollTop) document.body.scrollTop = 0;
+  }
+  window.addEventListener("scroll", function (e) {
+    if (e.target !== document && e.target !== window) return;
+    if (KB || Date.now() < kbUntil + 400) pinPage();
+  }, true);
   // Limpia lo que dejó la v10 si esta página la tenía cargada.
   try {
     document.querySelectorAll(".pk-footer").forEach(function (el) {
@@ -429,14 +459,17 @@
     var dock = dockOf(card);
     dock.classList.add("pk-dock");
     try { groupControls(dock); } catch (e) {}
-    // dónde quedaría la caja sin nuestro empujón
-    var natural = card.getBoundingClientRect().bottom - dockShift;
+    // dónde quedaría la caja sin nuestro empujón (v33: se resta lo que está movida AHORA, no la meta,
+    // así la medida no salta mientras va la animación)
+    var cur = currentShift(dock);
+    var natural = card.getBoundingClientRect().bottom - cur;
     var target = (VH || window.innerHeight) - KB - 6;
     // también los controles (+, modelo) van encima del teclado: medimos el fondo del dock entero
-    var dockBottom = dock.getBoundingClientRect().bottom - dockShift;
+    var dockBottom = dock.getBoundingClientRect().bottom - cur;
     var want = KB ? Math.min(0, target - Math.max(natural, dockBottom)) : 0;
     if (Math.abs(want - dockShift) > 0.5) {
       dockShift = want;
+      dock.style.setProperty("transition", "transform " + KBDUR + "s cubic-bezier(.38,.7,.125,1)", "important");
       dock.style.setProperty("transform", want ? "translateY(" + Math.round(want) + "px)" : "none", "important");
     }
     var sc = scroller();
@@ -465,12 +498,25 @@
     // v30: si hay adjuntos, van dentro de la burbuja, arriba del texto (como iMessage)
     var thumb = card ? card.querySelector("[data-testid='file-thumbnail']") : null;
     if (card) card.classList.toggle("pk-hasatt", !!thumb);
+    var send = card ? card.querySelector("button.pk-sendbtn, [data-testid='chat-input-send']") : null;
+    var sr = send ? send.getBoundingClientRect() : null;
+    var maxR = sr && sr.width > 0 ? sr.left - 10 : Infinity;
+    if (card) card.querySelectorAll(".pk-attrow").forEach(function (x) { if (!thumb || !x.contains(thumb)) { x.classList.remove("pk-attrow"); x.style.removeProperty("max-width"); } });
     if (thumb) {
+      // la fila entera de adjuntos (el padre directo de las miniaturas)
       var row = thumb;
-      while (row.parentElement && row.parentElement !== card) row = row.parentElement;
+      while (row.parentElement && row.parentElement !== card && row.parentElement.querySelectorAll("[data-testid='file-thumbnail']").length <= 1) row = row.parentElement;
+      if (row.parentElement && row.parentElement !== card) row = row.parentElement;
+      row.classList.add("pk-attrow");
+      var ar0 = row.getBoundingClientRect();
+      if (maxR !== Infinity) {
+        var mw = Math.max(80, Math.round(maxR - ar0.left - 6)) + "px";
+        if (row.style.maxWidth !== mw) row.style.setProperty("max-width", mw, "important");
+      }
       var ar = row.getBoundingClientRect();
-      if (ar.height > 0) { L = Math.min(L, ar.left + 4); T = Math.min(T, ar.top); Rr = Math.max(Rr, ar.right - 4); }
+      if (ar.height > 0) { L = Math.min(L, ar.left + 4); T = Math.min(T, ar.top); Rr = Math.max(Rr, ar.right + 2); }
     }
+    Rr = Math.min(Rr, maxR);
     var css = "left:" + (L - hr.left) + "px;top:" + (T - hr.top) + "px;width:" + (Rr - L) + "px;height:" + (B - T) + "px";
     if (glass.dataset.pk !== css) { glass.dataset.pk = css; glass.style.cssText = css; }
   }
@@ -524,13 +570,17 @@
       if (b.closest(".ProseMirror, [data-testid='file-thumbnail']")) return false;
       var r = b.getBoundingClientRect();
       // los de ícono son angostos (el texto que traen es solo para lectores de pantalla)
-      return r.width > 0 && r.width < 90;
+      // v33: fuera los invisibles / de solo lector de pantalla (1px), que corrían el orden y dejaban el micrófono cuadrado
+      if (r.width < 12 || r.height < 12) return false;
+      var cs = getComputedStyle(b);
+      if (cs.visibility === "hidden" || parseFloat(cs.opacity) === 0) return false;
+      return r.width < 90;
     });
     var model = dock.querySelector("[data-testid='model-selector-dropdown']");
     var limit = model ? model.getBoundingClientRect().left : window.innerWidth / 2;
     btns = btns.filter(function (b) { return b.getBoundingClientRect().left < limit && !(model && model.contains(b)); });
     btns.sort(function (x, y) { return x.getBoundingClientRect().left - y.getBoundingClientRect().left; });
-    btns.forEach(function (b) { b.classList.remove("pk-circle", "pk-ingroup", "pk-gl", "pk-gr"); });
+    dock.querySelectorAll(".pk-circle, .pk-ingroup, .pk-gl, .pk-gr, .pk-solo").forEach(function (b) { b.classList.remove("pk-circle", "pk-ingroup", "pk-gl", "pk-gr", "pk-solo"); });
     dock.querySelectorAll(".pk-group").forEach(function (g) { g.classList.remove("pk-group"); });
     if (btns.length >= 4) {
       btns[0].classList.add("pk-circle"); btns[1].classList.add("pk-circle");
@@ -544,6 +594,9 @@
         // sin contenedor propio: se juntan visualmente como un solo rectángulo
         g1.classList.add("pk-gl"); g2.classList.add("pk-gr");
       }
+    } else if (btns.length === 3) {
+      // + y micrófono en círculo; el chevron solo (sin la onda) en su rectángulo
+      btns[0].classList.add("pk-circle"); btns[1].classList.add("pk-circle"); btns[2].classList.add("pk-solo");
     } else {
       btns.forEach(function (b) { b.classList.add("pk-circle"); });
     }
