@@ -1,9 +1,9 @@
-/* Pockit chat v10 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v11 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 10;
+  var VERSION = 11;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -57,8 +57,13 @@
     "[data-testid='jump-to-latest']{display:none !important}",
     /* v10: burbuja de escribir de vidrio: el historial pasa por detrás y se ve borroso */
     "[data-cds-part='composer-card'] .ProseMirror{background:rgba(203,132,248,.62) !important;-webkit-backdrop-filter:blur(18px) saturate(1.5) !important;backdrop-filter:blur(18px) saturate(1.5) !important;border:1px solid rgba(255,255,255,.28) !important;box-shadow:0 2px 12px rgba(0,0,0,.18) !important}",
-    ".pk-footer{background:transparent !important;background-image:none !important;box-shadow:none !important;transition:transform .25s cubic-bezier(.2,.8,.2,1)}",
-    ".pk-footer::before, .pk-footer::after{background:transparent !important;background-image:none !important}",
+    /* v11: el historial pasa limpio por detrás de la caja (sin franjas, máscaras ni fondos de claude.ai) */
+    "[data-testid='chat-extra-space']{height:0 !important;min-height:0 !important;flex:0 0 0px !important}",
+    "[data-testid='transcript-bottom-fade'], [data-testid='transcript-bottom-backing-start'], [data-testid='transcript-bottom-backing-end']{background:transparent !important;background-image:none !important;opacity:0 !important;-webkit-mask-image:none !important;mask-image:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important}",
+    "[data-testid='transcript-bottom-gap']{background:transparent !important}",
+    "[data-composer-card-holder], [data-cds-dock-group], [data-cds='ChatComposer']{background:transparent !important;background-color:transparent !important;background-image:none !important;box-shadow:none !important}",
+    "[data-testid='pane-scroller'], [data-testid='primary-pane'], [data-testid='chat-column'], [data-testid='chat-column-body'], [data-testid='transcript-list'], [data-cds-dock-masked]{-webkit-mask-image:none !important;mask-image:none !important}",
+    ".pk-dock{transition:transform .28s cubic-bezier(.2,.8,.2,1) !important;will-change:transform}",
     ".pk-typing i{width:8px;height:8px;border-radius:50%;background:#E5D6F2;opacity:.35;animation:pkDot 1.2s infinite ease-in-out}",
     ".pk-typing i:nth-child(2){animation-delay:.18s}.pk-typing i:nth-child(3){animation-delay:.36s}",
     "@keyframes pkDot{0%,60%,100%{opacity:.35;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}",
@@ -317,72 +322,94 @@
   }
 
   // ---------- Layout estilo iMessage ----------
-  // El historial pasa por detrás de la caja de escribir (y del teclado), y el último mensaje queda justo encima de la caja.
+  // claude.ai ya deja la caja "flotando" sobre el historial; acá solo se le quitan franjas/fondos (CSS de arriba),
+  // se quitan los fondos que queden en la cadena de la caja y, con el teclado arriba, se sube la caja justo encima.
   function scroller() {
+    var p = document.querySelector("[data-testid='pane-scroller']");
+    if (p) return p;
     var msg = document.querySelector("[data-testid='user-message'], [data-testid='assistant-message']");
     for (var el = msg; el && el !== document.body; el = el.parentElement) {
       var cs = getComputedStyle(el);
-      if ((cs.overflowY === "auto" || cs.overflowY === "scroll")) return el;
+      if (cs.overflowY === "auto" || cs.overflowY === "scroll") return el;
     }
     return null;
   }
-  var KB = 0;
-  window.pockitKeyboard = function (h, dur) {
+  function dockOf(card) {
+    // el contenedor que realmente está pegado abajo (sticky/fixed/absolute); si no hay, el holder de la caja
+    for (var el = card.parentElement; el && el !== document.body; el = el.parentElement) {
+      var p = getComputedStyle(el).position;
+      if (p === "sticky" || p === "fixed" || p === "absolute") return el;
+      if (el.hasAttribute("data-composer-card-holder")) var holder = el;
+    }
+    return card.closest("[data-composer-card-holder]") || card;
+  }
+  var KB = 0, kbUntil = 0, kbLoop = null;
+  window.pockitKeyboard = function (h) {
     KB = Math.max(0, h || 0);
-    var f = document.querySelector(".pk-footer");
-    if (f) f.style.transitionDuration = (dur || .25) + "s";
-    try { layoutChat(true); } catch (e) {}
+    kbUntil = Date.now() + 900;
+    if (!kbLoop) {
+      var step = function () {
+        try { placeDock(); } catch (e) {}
+        if (Date.now() < kbUntil) kbLoop = requestAnimationFrame(step); else kbLoop = null;
+      };
+      kbLoop = requestAnimationFrame(step);
+    }
   };
-  function layoutChat(fromKeyboard) {
-    var card = document.querySelector("[data-cds-part='composer-card']");
-    var sc = scroller();
-    if (!card || !sc) return;
-    // 1) el contenedor de la caja (lo que está pegado abajo) sin fondo
-    var footer = card;
-    while (footer.parentElement && !footer.parentElement.contains(sc) && footer.parentElement !== document.body) footer = footer.parentElement;
-    var inside = sc.contains(card);
-    if (inside) {
-      // caja "sticky" dentro del scroll: el historial ya pasa por detrás; solo se le quitan los fondos
-      var top = card;
-      while (top.parentElement && top.parentElement !== sc && !top.parentElement.querySelector("[data-testid='user-message']")) top = top.parentElement;
-      footer = top;
-    } else {
-      var parent = footer.parentElement;
-      if (parent && getComputedStyle(parent).position === "static") parent.style.position = "relative";
-      footer.style.setProperty("position", "absolute", "important");
-      footer.style.setProperty("left", "0", "important");
-      footer.style.setProperty("right", "0", "important");
-      footer.style.setProperty("bottom", "0", "important");
-      footer.style.setProperty("z-index", "20", "important");
-    }
-    footer.classList.add("pk-footer");
-    for (var e2 = card; e2 && e2 !== footer.parentElement; e2 = e2.parentElement) {
-      if (e2 === card) continue;
-      e2.style.setProperty("background-color", "transparent", "important");
-      e2.style.setProperty("background-image", "none", "important");
-    }
-    // 2) subir la caja por encima del teclado (el teclado tapa la página, la página no se encoge)
-    footer.style.setProperty("transform", KB ? "translateY(" + (-KB) + "px)" : "none", "important");
-    // 3) espacio abajo del historial: exactamente lo que ocupa la caja (+ teclado)
-    var fh = footer.getBoundingClientRect().height;
-    var pad = Math.round((inside ? 0 : fh) + KB + 10);
-    if (sc.dataset.pkPad !== String(pad)) {
-      var wasBottom = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 40;
-      sc.style.setProperty("padding-bottom", pad + "px", "important");
-      sc.style.setProperty("scroll-padding-bottom", pad + "px", "important");
-      sc.dataset.pkPad = String(pad);
-      if (wasBottom || fromKeyboard) sc.scrollTop = sc.scrollHeight;
-    }
-    // 4) sin el espacio gigante que claude.ai deja debajo del último mensaje
-    var lastMsg = Array.from(document.querySelectorAll("[data-testid='user-message'], [data-testid='assistant-message']")).pop();
-    for (var a = lastMsg; a && a !== sc; a = a.parentElement) {
-      if (parseFloat(getComputedStyle(a).minHeight) > 0) a.style.setProperty("min-height", "0", "important");
-    }
-    Array.from(sc.querySelectorAll(":scope > * > *, :scope > *")).forEach(function (n) {
-      if (n.contains(card) || n.querySelector("[data-testid='user-message'], [data-testid='assistant-message']")) return;
-      if ((n.textContent || "").trim() || n.querySelector("img, button, svg, input, textarea")) return;
-      if (n.getBoundingClientRect().height > 40) n.style.setProperty("height", "0", "important"), n.style.setProperty("min-height", "0", "important");
+  var dockShift = 0;
+  // Limpia lo que dejó la v10 si esta página la tenía cargada.
+  try {
+    document.querySelectorAll(".pk-footer").forEach(function (el) {
+      ["position", "left", "right", "bottom", "z-index", "transform"].forEach(function (p) { el.style.removeProperty(p); });
+      el.classList.remove("pk-footer");
     });
+    document.querySelectorAll("[data-pk-pad]").forEach(function (el) {
+      el.style.removeProperty("padding-bottom"); el.style.removeProperty("scroll-padding-bottom"); el.removeAttribute("data-pk-pad");
+    });
+  } catch (e) {}
+  function placeDock() {
+    var card = document.querySelector("[data-cds-part='composer-card']");
+    if (!card) return;
+    var dock = dockOf(card);
+    dock.classList.add("pk-dock");
+    // dónde quedaría la caja sin nuestro empujón
+    var natural = card.getBoundingClientRect().bottom - dockShift;
+    var target = window.innerHeight - KB - 6;
+    // también los controles (+, modelo) van encima del teclado: medimos el fondo del dock entero
+    var dockBottom = dock.getBoundingClientRect().bottom - dockShift;
+    var want = KB ? Math.min(0, target - Math.max(natural, dockBottom)) : 0;
+    if (Math.abs(want - dockShift) > 0.5) {
+      dockShift = want;
+      dock.style.setProperty("transform", want ? "translateY(" + Math.round(want) + "px)" : "none", "important");
+    }
+    var sc = scroller();
+    if (sc) {
+      var pad = KB ? Math.round(-want) : 0;
+      if (sc.dataset.pkKb !== String(pad)) {
+        sc.dataset.pkKb = String(pad);
+        sc.style.setProperty("padding-bottom", pad ? pad + "px" : "", pad ? "important" : "");
+        if (pad) sc.scrollTop = sc.scrollHeight;
+      }
+    }
+  }
+  function layoutChat() {
+    var card = document.querySelector("[data-cds-part='composer-card']");
+    if (!card) return;
+    // fondos sueltos en la cadena de la caja (menos la burbuja rosa)
+    var dock = dockOf(card);
+    for (var el = card; el && el !== dock.parentElement; el = el.parentElement) {
+      el.style.setProperty("background-color", "transparent", "important");
+      el.style.setProperty("background-image", "none", "important");
+    }
+    // máscaras de desvanecido en los contenedores grandes del historial
+    var msg = document.querySelector("[data-testid='user-message'], [data-testid='assistant-message']");
+    for (var a = msg; a && a !== document.body; a = a.parentElement) {
+      var cs = getComputedStyle(a);
+      if ((cs.webkitMaskImage && cs.webkitMaskImage !== "none") || (cs.maskImage && cs.maskImage !== "none")) {
+        a.style.setProperty("-webkit-mask-image", "none", "important");
+        a.style.setProperty("mask-image", "none", "important");
+      }
+    }
+    if (KB) placeDock();
   }
   window.addEventListener("scroll", function () { try { typingDots(); } catch (e) {} }, true);
 
@@ -490,7 +517,7 @@
       if (n.querySelector(".prose, [data-testid='user-message'], [data-testid='assistant-message'], [data-cds-part='composer-card'], .ProseMirror")) n.classList.remove("pk-hide");
     });
     typingDots();
-    try { layoutChat(false); } catch (e) {}
+    try { layoutChat(); } catch (e) {}
     reportStreaming();
     findClaudeNotices().forEach(function (n) { n.classList.add("pk-hide"); });
     sendProjectChats();
