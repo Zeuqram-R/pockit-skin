@@ -1,9 +1,9 @@
-/* Pockit chat v28 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v29 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 28;
+  var VERSION = 29;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -82,12 +82,16 @@
     "[data-cds='ChatComposer'] button:not([data-testid='chat-input-send']), [data-cds='ChatComposer'] button:not([data-testid='chat-input-send']) *{color:#FFFFFF !important;opacity:1 !important;background-color:transparent !important;box-shadow:none !important}",
     "[data-cds='ChatComposer'] button svg{color:#FFFFFF !important;opacity:1 !important}",
     /* v23: cada control de abajo en su propio recuadro de esquinas redondeadas (vidrio oscuro) */
-    ".pk-dock.pk-dock button:not([data-testid='chat-input-send']):not([aria-label^='Quitar']):not([aria-label^='Remove']){background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:12px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding-left:8px !important;padding-right:8px !important}",
+    ".pk-dock.pk-dock button:not([data-testid='chat-input-send']):not([aria-label^='Quitar']):not([aria-label^='Remove']):not(.pk-sendbtn){background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:12px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding-left:8px !important;padding-right:8px !important}",
     /* v26: + y micrófono en círculos; la onda y la flechita juntas en un solo rectángulo */
     ".pk-dock.pk-dock button.pk-circle.pk-circle.pk-circle.pk-circle{width:40px !important;min-width:40px !important;height:40px !important;padding:0 !important;border-radius:50% !important;display:inline-flex !important;align-items:center !important;justify-content:center !important}",
     ".pk-dock.pk-dock button.pk-ingroup.pk-ingroup.pk-ingroup.pk-ingroup{background-color:transparent !important;border:none !important;box-shadow:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;padding-left:6px !important;padding-right:6px !important}",
     ".pk-dock.pk-dock button.pk-gl.pk-gl.pk-gl.pk-gl{height:40px !important;border-radius:14px 0 0 14px !important;border-right:none !important;margin-right:0 !important;padding-left:10px !important;padding-right:4px !important}",
     ".pk-dock.pk-dock button.pk-gr.pk-gr.pk-gr.pk-gr{height:40px !important;border-radius:0 14px 14px 0 !important;border-left:none !important;margin-left:-1px !important;padding-left:4px !important;padding-right:10px !important}",
+    /* v29: enviar / detener (a la par de la burbuja): círculo con el ícono centrado */
+    ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-sendbtn.pk-sendbtn{width:40px !important;min-width:40px !important;height:40px !important;padding:0 !important;border-radius:50% !important;display:inline-flex !important;align-items:center !important;justify-content:center !important}",
+    ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-sendbtn:not([data-testid='chat-input-send']){background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important}",
+    ".pk-dock.pk-dock button.pk-sendbtn > *{margin:0 !important;position:static !important;display:inline-flex !important;align-items:center !important;justify-content:center !important;inset:auto !important}",
     ".pk-dock.pk-dock .pk-group.pk-group.pk-group{display:inline-flex !important;align-items:center !important;height:40px !important;background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:14px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding:0 4px !important;gap:0 !important}",
     "[data-cds='ChatComposer'] fieldset, [data-cds='ChatComposer'] fieldset > *{background:transparent !important;border-color:transparent !important}",
     /* v20: TODO lo de la caja de claude.ai sin fondo (solo queda la burbuja de vidrio y el botón de enviar) */
@@ -461,8 +465,19 @@
   document.addEventListener("input", function () { try { syncGlass(); } catch (e) {} }, true);
   // botones de solo ícono del lado izquierdo (antes del selector de modelo), en orden
   function groupControls(dock) {
+    // botón de enviar/detener: el que está a la par de la burbuja (misma altura que la tarjeta de la caja)
+    var cardEl = dock.querySelector("[data-cds-part='composer-card']");
+    if (cardEl) {
+      var cr = cardEl.getBoundingClientRect();
+      dock.querySelectorAll("button").forEach(function (b) {
+        if (b.closest(".ProseMirror, [data-testid='file-thumbnail']")) return;
+        var r = b.getBoundingClientRect(), mid = r.top + r.height / 2;
+        var isSend = r.width > 0 && mid >= cr.top && mid <= cr.bottom && r.left > cr.left + cr.width / 2;
+        b.classList.toggle("pk-sendbtn", isSend);
+      });
+    }
     var btns = Array.prototype.filter.call(dock.querySelectorAll("button"), function (b) {
-      if (b.matches("[data-testid='chat-input-send'], [aria-label^='Quitar'], [aria-label^='Remove']")) return false;
+      if (b.matches("[data-testid='chat-input-send'], [aria-label^='Quitar'], [aria-label^='Remove'], .pk-sendbtn")) return false;
       if (b.closest(".ProseMirror, [data-testid='file-thumbnail']")) return false;
       var r = b.getBoundingClientRect();
       // los de ícono son angostos (el texto que traen es solo para lectores de pantalla)
