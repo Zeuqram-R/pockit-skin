@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 34;
+  var VERSION = 35;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -499,7 +499,7 @@
       dock.style.setProperty("transform", want ? "translateY(" + Math.round(want) + "px)" : "none", "important");
     }
     var sc = scroller();
-    if (sc && sc.dataset.pkKb !== String(KB ? Math.round(-want) : 0)) applyPad(sc);
+    if (sc && sc.dataset.pkKb !== String(KB ? Math.round(-want) : 0)) applyPad(sc, dock);
   }
   function syncGlass() {
     var pm = document.querySelector("[data-cds-part='composer-card'] .ProseMirror");
@@ -690,14 +690,51 @@
       });
     }
   }
-  function applyPad(sc) {
-    var kb = KB ? Math.round(-dockShift) : 0;
-    var pad = kb;
+  // v35: antes el espacio extra pa'l teclado iba como padding del área con scroll. Como la caja es "sticky",
+  // ese padding también la subía, y la caja y el espacio se empujaban entre sí: por eso brincaba y, al pasar a
+  // otro renglón, quedaba muy arriba. Ahora es un bloque vacío justo antes de la caja, que solo alarga el historial.
+  function applyPad(sc, dock) {
+    var pad = KB ? Math.round(-dockShift) : 0;
     var was = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 40;
-    sc.style.setProperty("padding-bottom", pad ? pad + "px" : "", pad ? "important" : "");
+    sc.style.removeProperty("padding-bottom");
+    var sp = document.getElementById("pk-kbspace");
+    if (dock && dock.parentElement) {
+      if (!sp) { sp = document.createElement("div"); sp.id = "pk-kbspace"; sp.setAttribute("aria-hidden", "true"); }
+      if (sp.nextSibling !== dock) dock.parentElement.insertBefore(sp, dock);
+      sp.style.cssText = "height:" + pad + "px;flex:0 0 auto;pointer-events:none";
+    } else if (sp) sp.style.height = "0px";
     sc.dataset.pkKb = String(pad);
     if (was) sc.scrollTop = sc.scrollHeight;
   }
+
+  // v35: claude.ai lee el portapapeles con navigator.clipboard al pegar y iOS mostraba el globito de "Pegar"
+  // pa' confirmar. Al pegar ya tenemos los datos del evento; se los damos de una vez, sin preguntar.
+  (function () {
+    var cb = navigator.clipboard;
+    if (!cb || cb.__pk) return;
+    cb.__pk = true;
+    var lastPaste = null;
+    document.addEventListener("paste", function (e) {
+      var d = e.clipboardData; if (!d) return;
+      var items = {}, text = "";
+      try {
+        Array.prototype.forEach.call(d.types || [], function (t) {
+          if (t === "Files") return;
+          var v = d.getData(t); if (t === "text/plain") text = v;
+          if (v) items[t] = new Blob([v], { type: t });
+        });
+        Array.prototype.forEach.call(d.files || [], function (f) { if (f.type && !items[f.type]) items[f.type] = f; });
+      } catch (er) {}
+      lastPaste = { at: Date.now(), items: items, text: text };
+    }, true);
+    var fresh = function () { return lastPaste && Date.now() - lastPaste.at < 1500; };
+    var oRead = cb.read && cb.read.bind(cb), oText = cb.readText && cb.readText.bind(cb);
+    if (oRead) cb.read = function () {
+      if (fresh() && window.ClipboardItem && Object.keys(lastPaste.items).length) return Promise.resolve([new ClipboardItem(lastPaste.items)]);
+      return oRead();
+    };
+    if (oText) cb.readText = function () { return fresh() ? Promise.resolve(lastPaste.text) : oText(); };
+  })();
   window.addEventListener("resize", function () { try { updateVH(); } catch (e) {} });
   setTimeout(function () { try { updateVH(); } catch (e) {} }, 300);
   window.addEventListener("scroll", function () { try { typingDots(); } catch (e) {} }, true);
