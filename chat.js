@@ -1,9 +1,9 @@
-/* Pockit chat v29 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v30 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 29;
+  var VERSION = 30;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -84,15 +84,22 @@
     /* v23: cada control de abajo en su propio recuadro de esquinas redondeadas (vidrio oscuro) */
     ".pk-dock.pk-dock button:not([data-testid='chat-input-send']):not([aria-label^='Quitar']):not([aria-label^='Remove']):not(.pk-sendbtn){background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:12px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding-left:8px !important;padding-right:8px !important}",
     /* v26: + y micrófono en círculos; la onda y la flechita juntas en un solo rectángulo */
-    ".pk-dock.pk-dock button.pk-circle.pk-circle.pk-circle.pk-circle{width:40px !important;min-width:40px !important;height:40px !important;padding:0 !important;border-radius:50% !important;display:inline-flex !important;align-items:center !important;justify-content:center !important}",
+    ".pk-dock.pk-dock button.pk-circle.pk-circle.pk-circle.pk-circle{width:24px !important;min-width:24px !important;height:24px !important;box-sizing:content-box !important;padding:0 !important;border-radius:50% !important;display:inline-flex !important;align-items:center !important;justify-content:center !important}",
     ".pk-dock.pk-dock button.pk-ingroup.pk-ingroup.pk-ingroup.pk-ingroup{background-color:transparent !important;border:none !important;box-shadow:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;padding-left:6px !important;padding-right:6px !important}",
-    ".pk-dock.pk-dock button.pk-gl.pk-gl.pk-gl.pk-gl{height:40px !important;border-radius:14px 0 0 14px !important;border-right:none !important;margin-right:0 !important;padding-left:10px !important;padding-right:4px !important}",
-    ".pk-dock.pk-dock button.pk-gr.pk-gr.pk-gr.pk-gr{height:40px !important;border-radius:0 14px 14px 0 !important;border-left:none !important;margin-left:-1px !important;padding-left:4px !important;padding-right:10px !important}",
+    ".pk-dock.pk-dock button.pk-gl.pk-gl.pk-gl.pk-gl{height:28px !important;border-radius:14px 0 0 14px !important;border-right:none !important;margin-right:0 !important;padding-left:10px !important;padding-right:4px !important}",
+    ".pk-dock.pk-dock button.pk-gr.pk-gr.pk-gr.pk-gr{height:28px !important;border-radius:0 14px 14px 0 !important;border-left:none !important;margin-left:-1px !important;padding-left:4px !important;padding-right:10px !important}",
     /* v29: enviar / detener (a la par de la burbuja): círculo con el ícono centrado */
     ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-sendbtn.pk-sendbtn{width:40px !important;min-width:40px !important;height:40px !important;padding:0 !important;border-radius:50% !important;display:inline-flex !important;align-items:center !important;justify-content:center !important}",
     ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-sendbtn:not([data-testid='chat-input-send']){background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important}",
     ".pk-dock.pk-dock button.pk-sendbtn > *{margin:0 !important;position:static !important;display:inline-flex !important;align-items:center !important;justify-content:center !important;inset:auto !important}",
-    ".pk-dock.pk-dock .pk-group.pk-group.pk-group{display:inline-flex !important;align-items:center !important;height:40px !important;background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:14px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding:0 4px !important;gap:0 !important}",
+    /* v30: con adjuntos la burbuja ocupa todo el ancho (adjunto arriba, texto abajo) */
+    "[data-cds-part='composer-card'].pk-hasatt .ProseMirror{width:100% !important;max-width:100% !important;margin-left:0 !important}",
+    "[data-cds-part='composer-card'].pk-hasatt [data-testid='file-thumbnail']{position:relative;z-index:1}",
+    /* v30: íconos de los círculos más grandes y bien centrados */
+    ".pk-dock.pk-dock button.pk-sendbtn *, .pk-dock.pk-dock button.pk-circle *{margin:0 !important;padding:0 !important}",
+    ".pk-dock.pk-dock button.pk-sendbtn svg{width:22px !important;height:22px !important;display:block !important}",
+    ".pk-dock.pk-dock button.pk-sendbtn > span, .pk-dock.pk-dock button.pk-circle > span{width:100% !important;height:100% !important;display:flex !important;align-items:center !important;justify-content:center !important}",
+    ".pk-dock.pk-dock .pk-group.pk-group.pk-group{display:inline-flex !important;align-items:center !important;height:28px !important;background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:14px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding:0 4px !important;gap:0 !important}",
     "[data-cds='ChatComposer'] fieldset, [data-cds='ChatComposer'] fieldset > *{background:transparent !important;border-color:transparent !important}",
     /* v20: TODO lo de la caja de claude.ai sin fondo (solo queda la burbuja de vidrio y el botón de enviar) */
     ".pk-dock, .pk-dock::before, .pk-dock::after, .pk-dock *:not(.pk-glass):not([data-testid='chat-input-send']):not([data-testid='chat-input-send'] *), .pk-dock *:not(.pk-glass)::before, .pk-dock *:not(.pk-glass)::after{background-color:transparent !important;background-image:none !important;box-shadow:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important}",
@@ -448,7 +455,17 @@
       holder.insertBefore(glass, holder.firstChild);
     }
     var hr = host.getBoundingClientRect(), r = pm.getBoundingClientRect();
-    var css = "left:" + (r.left - hr.left) + "px;top:" + (r.top - hr.top) + "px;width:" + r.width + "px;height:" + r.height + "px";
+    var L = r.left, T = r.top, Rr = r.right, B = r.bottom;
+    // v30: si hay adjuntos, van dentro de la burbuja, arriba del texto (como iMessage)
+    var thumb = card ? card.querySelector("[data-testid='file-thumbnail']") : null;
+    if (card) card.classList.toggle("pk-hasatt", !!thumb);
+    if (thumb) {
+      var row = thumb;
+      while (row.parentElement && row.parentElement !== card) row = row.parentElement;
+      var ar = row.getBoundingClientRect();
+      if (ar.height > 0) { L = Math.min(L, ar.left + 4); T = Math.min(T, ar.top); Rr = Math.max(Rr, ar.right - 4); }
+    }
+    var css = "left:" + (L - hr.left) + "px;top:" + (T - hr.top) + "px;width:" + (Rr - L) + "px;height:" + (B - T) + "px";
     if (glass.dataset.pk !== css) { glass.dataset.pk = css; glass.style.cssText = css; }
   }
   var glassLoop = null;
@@ -488,6 +505,7 @@
     btns = btns.filter(function (b) { return b.getBoundingClientRect().left < limit && !(model && model.contains(b)); });
     btns.sort(function (x, y) { return x.getBoundingClientRect().left - y.getBoundingClientRect().left; });
     btns.forEach(function (b) { b.classList.remove("pk-circle", "pk-ingroup", "pk-gl", "pk-gr"); });
+    dock.querySelectorAll(".pk-group").forEach(function (g) { g.classList.remove("pk-group"); });
     if (btns.length >= 4) {
       btns[0].classList.add("pk-circle"); btns[1].classList.add("pk-circle");
       var g1 = btns[2], g2 = btns[3];
