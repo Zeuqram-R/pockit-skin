@@ -1,9 +1,9 @@
-/* Pockit chat v7 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v8 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 7;
+  var VERSION = 8;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -16,7 +16,13 @@
     /* Selectores reales de claude.ai (sacados del diagnóstico de Jose, nov 2026). Van por CSS pa' que se apliquen al instante. */
     ":root, html{--cds-bg-user-message:#CB84F8 !important;--cds-bg-user-message-personal:#CB84F8 !important;--cds-text-user-message-personal:#1A1066 !important;--font-claude-response:PockitFigtree, -apple-system, system-ui, sans-serif !important;--font-user-message:PockitFigtree, -apple-system, system-ui, sans-serif !important}",
     /* La caja de escribir de claude.ai queda invisible (Pockit pone la suya, estilo iMessage) pero sigue funcionando por dentro. */
-    "[data-cds='ChatComposer'], [data-composer-card-holder], [data-testid='hub-composer-notices']{opacity:0 !important;pointer-events:none !important}",
+    /* Caja de escribir: la de claude.ai (con +, dictar, modelo y esfuerzo abajo), pero sin recuadro:
+       solo tu burbuja rosa a la derecha que crece hacia la izquierda. */
+    "[data-cds-part='composer-card']{background:transparent !important;border:none !important;box-shadow:none !important}",
+    "[data-cds-part='composer-card'] .ProseMirror{background:#CB84F8 !important;color:#1A1066 !important;caret-color:#1A1066 !important;border-radius:20px 20px 6px 20px !important;padding:9px 14px !important;width:fit-content !important;min-width:56px !important;max-width:100% !important;margin-left:auto !important;box-sizing:border-box !important;font-family:PockitFigtree, -apple-system, system-ui, sans-serif !important}",
+    "[data-cds-part='composer-card'] .ProseMirror *{color:#1A1066 !important}",
+    "[data-cds-part='composer-card'] .ProseMirror p::before, [data-cds-part='composer-card'] .ProseMirror .is-empty::before, [data-cds-part='composer-card'] .ProseMirror .is-editor-empty::before{content:none !important;display:none !important}",
+    "[data-testid='hub-composer-notices']{display:none !important}",
     "[data-testid='sidebar-compact-trigger']{display:none !important}",
     "[data-testid='chat-header'], [data-testid='chat-footer-row'], [data-testid='action-bar-read-aloud'], [data-testid='action-bar-retry'], [data-testid='user-message-actions'], [data-testid='assistant-message'] [class*='group/status'], button[aria-label='Buena respuesta'], button[aria-label='Mala respuesta'], button[aria-label='Good response'], button[aria-label='Bad response']{display:none !important}",
     "[data-testid='assistant-message'] .prose{background:#3826A6 !important;color:#FFFFFF !important;border-radius:20px 20px 20px 6px !important;padding:12px 16px !important;margin-right:auto !important;width:fit-content !important;max-width:90% !important;box-shadow:0 1px 0 rgba(0,0,0,.18) !important}",
@@ -42,7 +48,7 @@
     ".pk-abub p, .pk-abub li{font-size:16px !important;line-height:1.45 !important}",
     ".pk-hide{display:none !important}",
     /* "…" de escribiendo, como en iMessage */
-    ".pk-typing{display:inline-flex;gap:5px;align-items:center;background:#3826A6;border-radius:20px 20px 20px 6px;padding:13px 16px;margin:4px 0}",
+    ".pk-typing{position:fixed;left:14px;z-index:30;display:inline-flex;gap:5px;align-items:center;background:#3826A6;border-radius:18px 18px 18px 6px;padding:11px 14px;pointer-events:none;box-shadow:0 1px 0 rgba(0,0,0,.18)}",
     ".pk-typing i{width:8px;height:8px;border-radius:50%;background:#E5D6F2;opacity:.35;animation:pkDot 1.2s infinite ease-in-out}",
     ".pk-typing i:nth-child(2){animation-delay:.18s}.pk-typing i:nth-child(3){animation-delay:.36s}",
     "@keyframes pkDot{0%,60%,100%{opacity:.35;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}",
@@ -246,24 +252,34 @@
     document.querySelectorAll(".pk-newchat-box").forEach(function (e) { e.classList.remove("pk-newchat-box"); });
   }
 
-  // Puntitos de "escribiendo" mientras Marisol responde y todavía no hay texto.
+  // Puntitos de "escribiendo": fijos abajo a la izquierda, justo encima de la caja de escribir (no se mueven con el historial).
+  // Si subís a ver mensajes viejos, se esconden y queda el botón redondo de claude.ai pa' bajar (que ya trae los puntitos).
   function typingDots() {
-    document.querySelectorAll("[data-testid='assistant-message']").forEach(function (m) {
-      var streaming = m.getAttribute("data-is-streaming") === "true";
-      var hasText = Array.from(m.querySelectorAll(".prose")).some(function (p) { return (p.textContent || "").trim().length > 0; });
-      var dots = m.querySelector(":scope > .pk-typing");
-      if (streaming && !hasText) {
-        if (!dots) {
-          dots = document.createElement("div");
-          dots.className = "pk-typing";
-          dots.innerHTML = "<i></i><i></i><i></i>";
-          m.insertBefore(dots, m.firstChild);
-        }
-      } else if (dots) {
-        dots.remove();
-      }
+    var streaming = Array.from(document.querySelectorAll("[data-testid='assistant-message'][data-is-streaming='true']"));
+    var waiting = streaming.some(function (m) {
+      return !Array.from(m.querySelectorAll(".prose")).some(function (p) { return (p.textContent || "").trim().length > 0; });
     });
+    var jump = document.querySelector("[data-testid='jump-to-latest']");
+    var scrolledUp = !!(jump && jump.offsetParent !== null && jump.getBoundingClientRect().height > 0);
+    var dots = document.getElementById("pk-typing");
+    // Limpia los puntitos viejos que iban dentro del mensaje (v6/v7).
+    document.querySelectorAll("[data-testid='assistant-message'] > .pk-typing").forEach(function (d) { d.remove(); });
+    if (waiting && !scrolledUp) {
+      if (!dots) {
+        dots = document.createElement("div");
+        dots.id = "pk-typing";
+        dots.className = "pk-typing";
+        dots.innerHTML = "<i></i><i></i><i></i>";
+        document.body.appendChild(dots);
+      }
+      var card = document.querySelector("[data-cds-part='composer-card']");
+      var top = card ? card.getBoundingClientRect().top : window.innerHeight - 120;
+      dots.style.top = Math.max(60, top - 48) + "px";
+    } else if (dots) {
+      dots.remove();
+    }
   }
+  window.addEventListener("scroll", function () { try { typingDots(); } catch (e) {} }, true);
 
   // Avisa a Pockit si Marisol está escribiendo (pa' mostrar el botón de detener en la caja nativa).
   var lastStreaming = null;
