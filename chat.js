@@ -1,9 +1,9 @@
-/* Pockit chat v18 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v19 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 18;
+  var VERSION = 19;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -82,7 +82,7 @@
     "[data-cds='ChatComposer'] button:not([data-testid='chat-input-send']), [data-cds='ChatComposer'] button:not([data-testid='chat-input-send']) *{color:#FFFFFF !important;opacity:1 !important;background-color:transparent !important;box-shadow:none !important}",
     "[data-cds='ChatComposer'] button svg{color:#FFFFFF !important;opacity:1 !important}",
     "[data-cds='ChatComposer'] fieldset, [data-cds='ChatComposer'] fieldset > *{background:transparent !important;border-color:transparent !important}",
-    ".pk-dock{transition:transform .28s cubic-bezier(.2,.8,.2,1) !important;will-change:transform}",
+    ".pk-dock{transition:transform .28s cubic-bezier(.2,.8,.2,1) !important}",
     ".pk-typing i{width:8px;height:8px;border-radius:50%;background:#E5D6F2;opacity:.35;animation:pkDot 1.2s infinite ease-in-out}",
     ".pk-typing i:nth-child(2){animation-delay:.18s}.pk-typing i:nth-child(3){animation-delay:.36s}",
     "@keyframes pkDot{0%,60%,100%{opacity:.35;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}",
