@@ -1,9 +1,9 @@
-/* Pockit chat v9 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v10 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 9;
+  var VERSION = 10;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -52,7 +52,13 @@
     ".pk-abub p, .pk-abub li{font-size:16px !important;line-height:1.45 !important}",
     ".pk-hide{display:none !important}",
     /* "…" de escribiendo, como en iMessage */
-    ".pk-typing{position:fixed;left:14px;z-index:30;display:inline-flex;gap:5px;align-items:center;background:#3826A6;border-radius:18px 18px 18px 6px;padding:11px 14px;pointer-events:none;box-shadow:0 1px 0 rgba(0,0,0,.18)}",
+    ".pk-typing{position:fixed;left:14px;z-index:40;display:inline-flex;gap:5px;align-items:center;background:rgba(56,38,166,.62);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);border:1px solid rgba(255,255,255,.14);border-radius:18px 18px 18px 6px;padding:11px 14px;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.18);transition:top .32s cubic-bezier(.2,.8,.2,1), opacity .2s ease;will-change:top}",
+    /* v10: sin el botoncito de bajar (los puntitos ya se ven siempre junto a la caja) */
+    "[data-testid='jump-to-latest']{display:none !important}",
+    /* v10: burbuja de escribir de vidrio: el historial pasa por detrás y se ve borroso */
+    "[data-cds-part='composer-card'] .ProseMirror{background:rgba(203,132,248,.62) !important;-webkit-backdrop-filter:blur(18px) saturate(1.5) !important;backdrop-filter:blur(18px) saturate(1.5) !important;border:1px solid rgba(255,255,255,.28) !important;box-shadow:0 2px 12px rgba(0,0,0,.18) !important}",
+    ".pk-footer{background:transparent !important;background-image:none !important;box-shadow:none !important;transition:transform .25s cubic-bezier(.2,.8,.2,1)}",
+    ".pk-footer::before, .pk-footer::after{background:transparent !important;background-image:none !important}",
     ".pk-typing i{width:8px;height:8px;border-radius:50%;background:#E5D6F2;opacity:.35;animation:pkDot 1.2s infinite ease-in-out}",
     ".pk-typing i:nth-child(2){animation-delay:.18s}.pk-typing i:nth-child(3){animation-delay:.36s}",
     "@keyframes pkDot{0%,60%,100%{opacity:.35;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}",
@@ -256,48 +262,127 @@
     document.querySelectorAll(".pk-newchat-box").forEach(function (e) { e.classList.remove("pk-newchat-box"); });
   }
 
-  // Puntitos de "escribiendo": fijos abajo a la izquierda, justo encima de la caja de escribir (no se mueven con el historial).
-  // Si subís a ver mensajes viejos, se esconden y queda el botón redondo de claude.ai pa' bajar (que ya trae los puntitos).
-  function typingDots() {
+  // Puntitos de "escribiendo": a la izquierda, a la misma altura que tu burbuja de escribir. No se van al scrollear.
+  // Si tu burbuja crece hasta alcanzarlos, suben con animación y quedan encima de ella.
+  var dotsLoop = null;
+  function isWaiting() {
     var streaming = Array.from(document.querySelectorAll("[data-testid='assistant-message'][data-is-streaming='true']"));
     var waiting = streaming.some(function (m) {
       return !Array.from(m.querySelectorAll(".prose")).some(function (p) { return (p.textContent || "").trim().length > 0; });
     });
-    // También cuenta el ratito entre que mandás y que aparece la respuesta.
     var stopBtn = document.querySelector("button[aria-label*='Detener' i], button[aria-label*='Stop' i], button[aria-label*='Parar' i]");
     var turns = document.querySelectorAll("[data-testid='user-message'], [data-testid='assistant-message']");
     var last = turns.length ? turns[turns.length - 1] : null;
     if (stopBtn && last && last.matches("[data-testid='user-message']")) waiting = true;
-    var scrolledUp = isScrolledUp();
+    return waiting;
+  }
+  function placeDots(dots) {
+    var pm = document.querySelector("[data-cds-part='composer-card'] .ProseMirror") || document.querySelector("[data-cds-part='composer-card']");
+    if (!pm) return;
+    var r = pm.getBoundingClientRect();
+    var h = dots.offsetHeight || 34, w = dots.offsetWidth || 64;
+    var top;
+    if (r.left < 14 + w + 10) top = r.top - h - 8;          // tu burbuja llegó: subir encima
+    else top = r.bottom - h;                                 // a la par, alineados abajo como en iMessage
+    var px = Math.round(top) + "px";
+    if (dots.style.top !== px) dots.style.top = px;
+  }
+  function typingDots() {
     var dots = document.getElementById("pk-typing");
-    // Limpia los puntitos viejos que iban dentro del mensaje (v6/v7).
     document.querySelectorAll("[data-testid='assistant-message'] > .pk-typing").forEach(function (d) { d.remove(); });
-    if (waiting && !scrolledUp) {
+    if (isWaiting()) {
       if (!dots) {
         dots = document.createElement("div");
         dots.id = "pk-typing";
         dots.className = "pk-typing";
         dots.innerHTML = "<i></i><i></i><i></i>";
+        dots.style.transition = "none";
         document.body.appendChild(dots);
+        placeDots(dots);
+        void dots.offsetHeight;
+        dots.style.transition = "";
       }
-      var card = document.querySelector("[data-cds-part='composer-card']");
-      var top = card ? card.getBoundingClientRect().top : window.innerHeight - 120;
-      dots.style.top = Math.max(60, top - 48) + "px";
+      if (!dotsLoop) {
+        var tick = function () {
+          var d = document.getElementById("pk-typing");
+          if (!d) { dotsLoop = null; return; }
+          placeDots(d);
+          dotsLoop = requestAnimationFrame(tick);
+        };
+        dotsLoop = requestAnimationFrame(tick);
+      }
     } else if (dots) {
       dots.remove();
     }
   }
-  // El botón de bajar de claude.ai siempre existe (invisible cuando estás abajo), así que se mide el scroll de verdad.
-  function isScrolledUp() {
-    var msg = document.querySelector("[data-testid='assistant-message'], [data-testid='user-message']");
-    for (var el = msg; el && el !== document.documentElement; el = el.parentElement) {
+
+  // ---------- Layout estilo iMessage ----------
+  // El historial pasa por detrás de la caja de escribir (y del teclado), y el último mensaje queda justo encima de la caja.
+  function scroller() {
+    var msg = document.querySelector("[data-testid='user-message'], [data-testid='assistant-message']");
+    for (var el = msg; el && el !== document.body; el = el.parentElement) {
       var cs = getComputedStyle(el);
-      if ((cs.overflowY === "auto" || cs.overflowY === "scroll") && el.scrollHeight > el.clientHeight + 4) {
-        return el.scrollHeight - el.scrollTop - el.clientHeight > 160;
-      }
+      if ((cs.overflowY === "auto" || cs.overflowY === "scroll")) return el;
     }
-    var se = document.scrollingElement || document.documentElement;
-    return se.scrollHeight - se.scrollTop - window.innerHeight > 160;
+    return null;
+  }
+  var KB = 0;
+  window.pockitKeyboard = function (h, dur) {
+    KB = Math.max(0, h || 0);
+    var f = document.querySelector(".pk-footer");
+    if (f) f.style.transitionDuration = (dur || .25) + "s";
+    try { layoutChat(true); } catch (e) {}
+  };
+  function layoutChat(fromKeyboard) {
+    var card = document.querySelector("[data-cds-part='composer-card']");
+    var sc = scroller();
+    if (!card || !sc) return;
+    // 1) el contenedor de la caja (lo que está pegado abajo) sin fondo
+    var footer = card;
+    while (footer.parentElement && !footer.parentElement.contains(sc) && footer.parentElement !== document.body) footer = footer.parentElement;
+    var inside = sc.contains(card);
+    if (inside) {
+      // caja "sticky" dentro del scroll: el historial ya pasa por detrás; solo se le quitan los fondos
+      var top = card;
+      while (top.parentElement && top.parentElement !== sc && !top.parentElement.querySelector("[data-testid='user-message']")) top = top.parentElement;
+      footer = top;
+    } else {
+      var parent = footer.parentElement;
+      if (parent && getComputedStyle(parent).position === "static") parent.style.position = "relative";
+      footer.style.setProperty("position", "absolute", "important");
+      footer.style.setProperty("left", "0", "important");
+      footer.style.setProperty("right", "0", "important");
+      footer.style.setProperty("bottom", "0", "important");
+      footer.style.setProperty("z-index", "20", "important");
+    }
+    footer.classList.add("pk-footer");
+    for (var e2 = card; e2 && e2 !== footer.parentElement; e2 = e2.parentElement) {
+      if (e2 === card) continue;
+      e2.style.setProperty("background-color", "transparent", "important");
+      e2.style.setProperty("background-image", "none", "important");
+    }
+    // 2) subir la caja por encima del teclado (el teclado tapa la página, la página no se encoge)
+    footer.style.setProperty("transform", KB ? "translateY(" + (-KB) + "px)" : "none", "important");
+    // 3) espacio abajo del historial: exactamente lo que ocupa la caja (+ teclado)
+    var fh = footer.getBoundingClientRect().height;
+    var pad = Math.round((inside ? 0 : fh) + KB + 10);
+    if (sc.dataset.pkPad !== String(pad)) {
+      var wasBottom = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 40;
+      sc.style.setProperty("padding-bottom", pad + "px", "important");
+      sc.style.setProperty("scroll-padding-bottom", pad + "px", "important");
+      sc.dataset.pkPad = String(pad);
+      if (wasBottom || fromKeyboard) sc.scrollTop = sc.scrollHeight;
+    }
+    // 4) sin el espacio gigante que claude.ai deja debajo del último mensaje
+    var lastMsg = Array.from(document.querySelectorAll("[data-testid='user-message'], [data-testid='assistant-message']")).pop();
+    for (var a = lastMsg; a && a !== sc; a = a.parentElement) {
+      if (parseFloat(getComputedStyle(a).minHeight) > 0) a.style.setProperty("min-height", "0", "important");
+    }
+    Array.from(sc.querySelectorAll(":scope > * > *, :scope > *")).forEach(function (n) {
+      if (n.contains(card) || n.querySelector("[data-testid='user-message'], [data-testid='assistant-message']")) return;
+      if ((n.textContent || "").trim() || n.querySelector("img, button, svg, input, textarea")) return;
+      if (n.getBoundingClientRect().height > 40) n.style.setProperty("height", "0", "important"), n.style.setProperty("min-height", "0", "important");
+    });
   }
   window.addEventListener("scroll", function () { try { typingDots(); } catch (e) {} }, true);
 
@@ -405,6 +490,7 @@
       if (n.querySelector(".prose, [data-testid='user-message'], [data-testid='assistant-message'], [data-cds-part='composer-card'], .ProseMirror")) n.classList.remove("pk-hide");
     });
     typingDots();
+    try { layoutChat(false); } catch (e) {}
     reportStreaming();
     findClaudeNotices().forEach(function (n) { n.classList.add("pk-hide"); });
     sendProjectChats();
