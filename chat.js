@@ -1,9 +1,9 @@
-/* Pockit chat v8 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v9 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 8;
+  var VERSION = 9;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -30,7 +30,11 @@
     "[data-testid='assistant-message'] .prose p, [data-testid='assistant-message'] .prose li{color:#FFFFFF !important;font-size:16px !important;line-height:1.45 !important}",
     "[data-testid='assistant-message'] .prose a{color:#F2C6FF !important}",
     "[data-testid='assistant-message'] .prose pre{background:rgba(26,16,102,.75) !important;border-radius:12px !important}",
-    "[data-cds-part='composer-card']{border-radius:22px !important;background:rgba(26,16,102,.85) !important;border:1px solid rgba(255,255,255,.22) !important;box-shadow:none !important}",
+    /* v9: sin recuadro oscuro ni texto "Responder" — solo la burbuja rosa y los controles de abajo. */
+    "[data-cds-part='composer-card'], [data-cds-part='composer-card'] *:not(.ProseMirror):not(button):not(button *){background-color:transparent !important;border-color:transparent !important;box-shadow:none !important}",
+    "[data-cds-part='composer-card'] [data-placeholder]::before, [data-cds-part='composer-card'] [data-placeholder]::after, [data-cds-part='composer-card'] .placeholder::before{content:none !important;display:none !important}",
+    "[data-cds-part='composer-card'] textarea::placeholder, [data-cds-part='composer-card'] [contenteditable]:empty::before{color:transparent !important;content:none !important}",
+    ".pk-ph{display:none !important}",
     "@font-face{font-family:PockitFigtree;src:url(" + FONT_R + ") format('woff2');font-weight:400;font-display:swap}",
     "@font-face{font-family:PockitFigtree;src:url(" + FONT_S + ") format('woff2');font-weight:600 700;font-display:swap}",
     "body, .pk-ubub, .pk-abub, .pk-composer, .ProseMirror{font-family:PockitFigtree, -apple-system, system-ui, sans-serif !important}",
@@ -63,7 +67,7 @@
     ".pk-abub > *:last-child{margin-bottom:0 !important}",
 
     /* Caja de escribir: pastilla redonda como iMessage */
-    ".pk-composer{border-radius:24px !important;background:rgba(26,16,102,.85) !important;border:1px solid rgba(255,255,255,.22) !important;box-shadow:none !important}",
+    ".pk-composer{background:transparent !important;border:none !important;box-shadow:none !important}",
 
     /* Botón de spoiler de Pockit dentro de la burbuja */
     ".pk-abub [data-pockit-toggle]{font-family:PockitFigtree, -apple-system, system-ui, sans-serif !important}"
@@ -259,8 +263,12 @@
     var waiting = streaming.some(function (m) {
       return !Array.from(m.querySelectorAll(".prose")).some(function (p) { return (p.textContent || "").trim().length > 0; });
     });
-    var jump = document.querySelector("[data-testid='jump-to-latest']");
-    var scrolledUp = !!(jump && jump.offsetParent !== null && jump.getBoundingClientRect().height > 0);
+    // También cuenta el ratito entre que mandás y que aparece la respuesta.
+    var stopBtn = document.querySelector("button[aria-label*='Detener' i], button[aria-label*='Stop' i], button[aria-label*='Parar' i]");
+    var turns = document.querySelectorAll("[data-testid='user-message'], [data-testid='assistant-message']");
+    var last = turns.length ? turns[turns.length - 1] : null;
+    if (stopBtn && last && last.matches("[data-testid='user-message']")) waiting = true;
+    var scrolledUp = isScrolledUp();
     var dots = document.getElementById("pk-typing");
     // Limpia los puntitos viejos que iban dentro del mensaje (v6/v7).
     document.querySelectorAll("[data-testid='assistant-message'] > .pk-typing").forEach(function (d) { d.remove(); });
@@ -278,6 +286,18 @@
     } else if (dots) {
       dots.remove();
     }
+  }
+  // El botón de bajar de claude.ai siempre existe (invisible cuando estás abajo), así que se mide el scroll de verdad.
+  function isScrolledUp() {
+    var msg = document.querySelector("[data-testid='assistant-message'], [data-testid='user-message']");
+    for (var el = msg; el && el !== document.documentElement; el = el.parentElement) {
+      var cs = getComputedStyle(el);
+      if ((cs.overflowY === "auto" || cs.overflowY === "scroll") && el.scrollHeight > el.clientHeight + 4) {
+        return el.scrollHeight - el.scrollTop - el.clientHeight > 160;
+      }
+    }
+    var se = document.scrollingElement || document.documentElement;
+    return se.scrollHeight - se.scrollTop - window.innerHeight > 160;
   }
   window.addEventListener("scroll", function () { try { typingDots(); } catch (e) {} }, true);
 
@@ -391,7 +411,26 @@
     undoNewChatScreen();
     findActionButtons().forEach(function (n) { n.classList.add("pk-hide"); });
     var c = findComposer();
-    if (c) c.classList.add("pk-composer");
+    if (c) { c.classList.add("pk-composer"); cleanComposer(c); }
+  }
+
+  // Quita el recuadro de la caja (lo que quede entre la caja y la burbuja) y esconde el texto "Responder".
+  var PH_RE = /^(Responder|Responde.*|Reply.*|Escrib[ea].*|Write.*|Type.*|Pregunt.*|Ask.*|Message.*|Mensaje.*|How can I help.*|¿En qué.*)$/i;
+  function cleanComposer(card) {
+    var pm = card.querySelector(".ProseMirror, [contenteditable='true']");
+    if (pm) {
+      for (var el = pm.parentElement; el && el !== card.parentElement; el = el.parentElement) {
+        el.style.setProperty("background-color", "transparent", "important");
+        el.style.setProperty("border-color", "transparent", "important");
+        el.style.setProperty("box-shadow", "none", "important");
+      }
+    }
+    card.querySelectorAll("div, span, p, label").forEach(function (n) {
+      if (n.closest(".ProseMirror, [contenteditable='true'], button")) return;
+      if (n.children.length) return;
+      var t = (n.textContent || "").trim();
+      if (t && t.length < 40 && PH_RE.test(t)) n.classList.add("pk-ph");
+    });
   }
 
   var timer = null;
@@ -450,6 +489,7 @@
       turnList: (function(){ var l = findTurnList(); return l ? chain(l, 3) : null; })(),
       aiTurns: aiTurns().length,
       hidden: document.querySelectorAll(".pk-hide").length,
+      composerSkeleton: (function(){ var c = document.querySelector("[data-cds-part='composer-card']"); return c ? skeleton(c, 0).slice(0, 3000) : null; })(),
       aiSkeleton: (function(){ var t = aiTurns()[0]; return t ? skeleton(t, 0).slice(0, 3500) : null; })(),
       fontLoaded: document.fonts ? document.fonts.check("16px PockitFigtree") : null
     }, null, 1);
