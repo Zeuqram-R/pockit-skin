@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 35;
+  var VERSION = 36;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -109,6 +109,9 @@
     ".pk-sendbg.pk-send{border-radius:13px;background-color:#CB84F8;border:1px solid rgba(255,255,255,.35)}",
     ".pk-sendbg.pk-send.pk-off{opacity:.45}",
     ".pk-sendbg.pk-stop{border-radius:50%;background-color:rgba(26,16,102,.6);border:1px solid rgba(255,255,255,.25);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}",
+    /* v36: la regla vieja que vuelve transparente todo dentro de la tarjeta le borraba el rosa */
+    "[data-cds-part='composer-card'] .pk-sendbg.pk-sendbg.pk-send{background-color:#CB84F8 !important;border:1px solid rgba(255,255,255,.35) !important;box-shadow:0 2px 8px rgba(0,0,0,.2) !important}",
+    "[data-cds-part='composer-card'] .pk-sendbg.pk-sendbg.pk-stop{background-color:rgba(26,16,102,.6) !important;border:1px solid rgba(255,255,255,.25) !important}",
     ".pk-sendbg.pk-goo{animation:pkGoo .7s cubic-bezier(.3,1.4,.5,1)}",
     "@keyframes pkGoo{0%{transform:scale(1,1)}20%{transform:scale(1.22,.8)}40%{transform:scale(.84,1.18)}60%{transform:scale(1.08,.94)}80%{transform:scale(.97,1.03)}100%{transform:scale(1,1)}}",
     ".pk-dock.pk-dock .pk-group.pk-group.pk-group{display:inline-flex !important;align-items:center !important;height:28px !important;background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:14px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding:0 4px !important;gap:0 !important}",
@@ -434,15 +437,40 @@
   }
   var KB = 0, kbUntil = 0, kbLoop = null;
   var KBDUR = 0.4;
+  // v36: al abrir el teclado WebKit también corre el historial pa' "mostrar" el cursor y lo dejaba en blanco.
+  // Durante la animación, si el historial se mueve sin que lo toqués, vuelve a donde estaba.
+  var touching = false, guardTop = null, guardUntil = 0;
+  document.addEventListener("touchstart", function () { touching = true; }, { capture: true, passive: true });
+  document.addEventListener("touchend", function () { touching = false; }, { capture: true, passive: true });
+  document.addEventListener("touchcancel", function () { touching = false; }, { capture: true, passive: true });
+  function armScrollGuard() {
+    var sc = scroller(); if (!sc) return;
+    var atEnd = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 40;
+    guardTop = atEnd ? null : sc.scrollTop;
+    guardUntil = Date.now() + 1000;
+  }
+  document.addEventListener("scroll", function (e) {
+    var sc = scroller();
+    if (!sc || e.target !== sc || touching || Date.now() > guardUntil) return;
+    var want = guardTop == null ? sc.scrollHeight - sc.clientHeight : guardTop;
+    if (Math.abs(sc.scrollTop - want) > 2) sc.scrollTop = want;
+  }, true);
+  document.addEventListener("focusin", function (e) { if (e.target.closest && e.target.closest(".ProseMirror")) armScrollGuard(); }, true);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("scroll", function () { if (KB || Date.now() < kbUntil) { try { placeDock(); } catch (e) {} } });
+  }
   window.pockitKeyboard = function (h, dur) {
     KB = Math.max(0, h || 0);
     // v33: la caja se mueve al mismo ritmo y con la misma curva que el teclado de iOS
     KBDUR = Math.max(0.3, Math.min(0.6, (dur || 0.25) + 0.1));
     kbUntil = Date.now() + 900;
+    glassUntil = Date.now() + 1000;
     try { pinPage(); } catch (e) {}
+    if (Date.now() > guardUntil) armScrollGuard();
     if (!kbLoop) {
       var step = function () {
         try { pinPage(); placeDock(); } catch (e) {}
+        runGlass();
         if (Date.now() < kbUntil) kbLoop = requestAnimationFrame(step); else kbLoop = null;
       };
       kbLoop = requestAnimationFrame(step);
@@ -484,14 +512,16 @@
     if (!card) return;
     var dock = dockOf(card);
     dock.classList.add("pk-dock");
-    try { groupControls(dock); } catch (e) {}
     // dónde quedaría la caja sin nuestro empujón (v33: se resta lo que está movida AHORA, no la meta,
     // así la medida no salta mientras va la animación)
     var cur = currentShift(dock);
-    var natural = card.getBoundingClientRect().bottom - cur;
+    // v36: si WebKit corrió la vista pa' arriba (pa' mostrar el cursor), la caja ya se ve más arriba en pantalla;
+    // eso se descuenta, si no se sumaba a nuestro empujón y la caja brincaba de más.
+    var vvOff = window.visualViewport ? window.visualViewport.offsetTop : 0;
+    var natural = card.getBoundingClientRect().bottom - cur - vvOff;
     var target = (VH || window.innerHeight) - KB - 6;
     // también los controles (+, modelo) van encima del teclado: medimos el fondo del dock entero
-    var dockBottom = dock.getBoundingClientRect().bottom - cur;
+    var dockBottom = dock.getBoundingClientRect().bottom - cur - vvOff;
     var want = KB ? Math.min(0, target - Math.max(natural, dockBottom)) : 0;
     if (Math.abs(want - dockShift) > 0.5) {
       dockShift = want;
@@ -546,18 +576,23 @@
     var css = "left:" + (L - hr.left) + "px;top:" + (T - hr.top) + "px;width:" + (Rr - L) + "px;height:" + (B - T) + "px";
     if (glass.dataset.pk !== css) { glass.dataset.pk = css; glass.style.cssText = css; }
   }
-  var glassLoop = null;
-  document.addEventListener("focusin", function (e) {
-    if (!e.target.closest || !e.target.closest(".ProseMirror")) return;
+  // v36: el vidrio se re-mide solo un ratito después de enfocar, escribir o mover el teclado (antes era cada
+  // cuadro mientras la caja tenía el cursor, y eso hacía que la app se sintiera pegada).
+  var glassLoop = null, glassUntil = 0;
+  function runGlass() {
     if (glassLoop) return;
     var step = function () {
       try { syncGlass(); } catch (er) {}
-      var a = document.activeElement;
-      if (a && a.closest && a.closest(".ProseMirror")) glassLoop = requestAnimationFrame(step); else { glassLoop = null; try { syncGlass(); } catch (er) {} }
+      if (Date.now() < glassUntil) glassLoop = requestAnimationFrame(step); else glassLoop = null;
     };
     glassLoop = requestAnimationFrame(step);
+  }
+  document.addEventListener("focusin", function (e) {
+    if (!e.target.closest || !e.target.closest(".ProseMirror")) return;
+    glassUntil = Date.now() + 1200; runGlass();
   }, true);
-  document.addEventListener("input", function () { try { syncGlass(); } catch (e) {} }, true);
+  document.addEventListener("focusout", function () { glassUntil = Date.now() + 400; runGlass(); }, true);
+  document.addEventListener("input", function () { glassUntil = Math.max(glassUntil, Date.now() + 250); runGlass(); }, true);
   // botones de solo ícono del lado izquierdo (antes del selector de modelo), en orden
   function placeSendBg(cardEl) {
     var btn = cardEl.querySelector("button.pk-sendbtn");
@@ -670,7 +705,7 @@
     var msg = document.querySelector("[data-testid='user-message'], [data-testid='assistant-message']");
     var list = [];
     for (var a = msg; a && a !== document.body; a = a.parentElement) list.push(a);
-    document.querySelectorAll("[data-testid='transcript-row']").forEach(function (r) { list.push(r); if (r.firstElementChild) list.push(r.firstElementChild); });
+    document.querySelectorAll("[data-testid='transcript-row']:not([data-pk-u])").forEach(function (r) { r.setAttribute("data-pk-u", "1"); list.push(r); if (r.firstElementChild) list.push(r.firstElementChild); });
     list.forEach(function (el) {
       var cs = getComputedStyle(el);
       if ((cs.clipPath && cs.clipPath !== "none") || (cs.webkitMaskImage && cs.webkitMaskImage !== "none") || (cs.maskImage && cs.maskImage !== "none")) el.classList.add("pk-unmask");
@@ -875,7 +910,7 @@
   var timer = null;
   function schedule() {
     if (timer) return;
-    timer = setTimeout(function () { timer = null; try { tag(); } catch (e) {} }, 60);
+    timer = setTimeout(function () { timer = null; try { tag(); } catch (e) {} }, 120);
   }
 
   try { tag(); } catch (e) {}
