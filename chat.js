@@ -1,9 +1,9 @@
-/* Pockit chat v15 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v16 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 15;
+  var VERSION = 16;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -61,7 +61,7 @@
     "[data-cds-part='composer-card'] .ProseMirror{background:transparent !important;border:none !important;box-shadow:none !important;position:relative !important;z-index:1 !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;color:#FFFFFF !important;caret-color:#FFFFFF !important}",
     "[data-cds-part='composer-card'] .ProseMirror *{color:#FFFFFF !important}",
     /* v15: la regla que vuelve transparente todo dentro de la tarjeta también le quitaba el rosa al vidrio */
-    "[data-cds-part='composer-card'] .pk-glass.pk-glass{background-color:rgba(203,132,248,.72) !important;border-color:rgba(255,255,255,.3) !important;box-shadow:0 2px 12px rgba(0,0,0,.18) !important}",
+    "[data-cds-part='composer-card'] .pk-glass.pk-glass{background-color:rgba(203,132,248,.45) !important;border-color:rgba(255,255,255,.3) !important;box-shadow:0 2px 12px rgba(0,0,0,.18) !important}",
     ".pk-glass{position:absolute;pointer-events:none;z-index:0;background:rgba(203,132,248,.72);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);border:1px solid rgba(255,255,255,.3);border-radius:20px 20px 6px 20px;box-shadow:0 2px 12px rgba(0,0,0,.18)}",
     /* v11: el historial pasa limpio por detrás de la caja (sin franjas, máscaras ni fondos de claude.ai) */
     "[data-testid='chat-extra-space']{height:0 !important;min-height:0 !important;flex:0 0 0px !important}",
@@ -456,22 +456,47 @@
   }
   // v15: el historial llega hasta abajo del todo (detrás de la caja y los controles), no se corta a media burbuja.
   var EXT = 0;
+  // v16: se estira toda la cadena (el scroll y sus contenedores) hasta el fondo, no solo el scroll,
+  // porque un contenedor de más arriba era el que cortaba el historial a media burbuja.
+  function chainOf(sc, card) {
+    var chain = [];
+    for (var el = sc; el && el !== document.body; el = el.parentElement) {
+      if (card && el.contains(card)) break;
+      chain.push(el);
+    }
+    return chain;
+  }
   function extendScroller() {
     var sc = scroller();
+    var card = document.querySelector("[data-cds-part='composer-card']");
     if (!sc) return;
-    var r = sc.getBoundingClientRect();
+    var chain = chainOf(sc, card);
+    var top = chain[chain.length - 1];
+    var r = top.getBoundingClientRect();
     var naturalBottom = r.bottom - EXT;
     var h = Math.max(0, Math.round(window.innerHeight - naturalBottom));
     if (Math.abs(h - EXT) < 2) return;
-    var naturalHeight = r.height - EXT;
-    EXT = h;
+    chain.forEach(function (el) {
+      var nat = el.dataset.pkNatH ? parseFloat(el.dataset.pkNatH) : el.getBoundingClientRect().height;
+      el.dataset.pkNatH = String(nat);
+      if (h) {
+        el.style.setProperty("height", (nat + h) + "px", "important");
+        el.style.setProperty("max-height", "none", "important");
+      } else { el.style.removeProperty("height"); el.style.removeProperty("max-height"); }
+    });
     if (h) {
-      sc.style.setProperty("height", (naturalHeight + h) + "px", "important");
-      sc.style.setProperty("max-height", "none", "important");
-      sc.style.setProperty("margin-bottom", (-h) + "px", "important");
-    } else {
-      ["height", "max-height", "margin-bottom"].forEach(function (p) { sc.style.removeProperty(p); });
-    }
+      top.style.setProperty("margin-bottom", (-h) + "px", "important");
+      if (getComputedStyle(top).position === "static") top.style.setProperty("position", "relative");
+      top.style.setProperty("z-index", "0");
+      var dock = card ? dockOf(card) : null;
+      var branch = dock;
+      while (branch && branch.parentElement && branch.parentElement !== top.parentElement) branch = branch.parentElement;
+      if (branch && branch.parentElement === top.parentElement) {
+        if (getComputedStyle(branch).position === "static") branch.style.setProperty("position", "relative");
+        branch.style.setProperty("z-index", "2");
+      }
+    } else top.style.removeProperty("margin-bottom");
+    EXT = h;
     applyPad(sc);
   }
   function applyPad(sc) {
@@ -482,7 +507,15 @@
     sc.dataset.pkKb = String(pad);
     if (was) sc.scrollTop = sc.scrollHeight;
   }
-  window.addEventListener("resize", function () { EXT = -1; try { var sc = scroller(); if (sc) { ["height","max-height","margin-bottom"].forEach(function (p) { sc.style.removeProperty(p); }); EXT = 0; extendScroller(); } } catch (e) {} });
+  window.addEventListener("resize", function () {
+    try {
+      document.querySelectorAll("[data-pk-nat-h]").forEach(function (el) {
+        ["height", "max-height", "margin-bottom"].forEach(function (p) { el.style.removeProperty(p); });
+        el.removeAttribute("data-pk-nat-h");
+      });
+      EXT = 0; extendScroller();
+    } catch (e) {}
+  });
   window.addEventListener("scroll", function () { try { typingDots(); } catch (e) {} }, true);
 
   // Avisa a Pockit si Marisol está escribiendo (pa' mostrar el botón de detener en la caja nativa).
@@ -674,6 +707,20 @@
       turnList: (function(){ var l = findTurnList(); return l ? chain(l, 3) : null; })(),
       aiTurns: aiTurns().length,
       hidden: document.querySelectorAll(".pk-hide").length,
+      layout: (function () {
+        var sc = scroller(), card = document.querySelector("[data-cds-part='composer-card']");
+        if (!sc) return null;
+        var out = [];
+        for (var el = sc; el && el !== document.body; el = el.parentElement) {
+          var r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+          out.push((el.getAttribute("data-testid") || el.tagName.toLowerCase() + "." + String(el.className).slice(0, 40)) +
+            " top=" + Math.round(r.top) + " bottom=" + Math.round(r.bottom) + " ov=" + cs.overflowY + " pos=" + cs.position +
+            (card && el.contains(card) ? " [contiene caja]" : ""));
+          if (card && el.contains(card)) break;
+        }
+        return { innerHeight: window.innerHeight, ext: EXT, chain: out,
+          card: card ? Math.round(card.getBoundingClientRect().top) + "-" + Math.round(card.getBoundingClientRect().bottom) : null };
+      })(),
       composerSkeleton: (function(){ var c = document.querySelector("[data-cds-part='composer-card']"); return c ? skeleton(c, 0).slice(0, 3000) : null; })(),
       aiSkeleton: (function(){ var t = aiTurns()[0]; return t ? skeleton(t, 0).slice(0, 3500) : null; })(),
       fontLoaded: document.fonts ? document.fonts.check("16px PockitFigtree") : null
