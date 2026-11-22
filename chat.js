@@ -1,9 +1,9 @@
-/* Pockit chat v31 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v32 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 31;
+  var VERSION = 32;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -96,6 +96,8 @@
        cuadrado redondeado rosa (enviar) <-> círculo de vidrio (detener), con un "temblor" tipo simbionte. */
     ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-sendbtn.pk-sendbtn{width:40px !important;min-width:40px !important;height:40px !important;padding:0 !important;border:none !important;background:transparent !important;display:grid !important;place-items:center !important;position:relative !important;z-index:2 !important}",
     ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn > *{grid-area:1/1 !important;position:static !important;margin:0 !important;padding:0 !important;inset:auto !important;display:grid !important;place-items:center !important;width:auto !important;height:auto !important;transform:none !important}",
+    ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn span, .pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn div{background:transparent !important;background-color:transparent !important;box-shadow:none !important;border:none !important}",
+    ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn, .pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn *{color:#FFFFFF !important}",
     ".pk-dock.pk-dock button.pk-sendbtn svg{width:22px !important;height:22px !important;display:block !important;margin:0 !important}",
     ".pk-sendbg{position:absolute;pointer-events:none;z-index:1;box-sizing:border-box;transition:left .3s cubic-bezier(.2,.8,.2,1), top .3s cubic-bezier(.2,.8,.2,1), border-radius .6s cubic-bezier(.34,1.56,.64,1), background-color .35s ease, border-color .35s ease, opacity .25s ease}",
     ".pk-sendbg.pk-send{border-radius:13px;background-color:#CB84F8;border:1px solid rgba(255,255,255,.35)}",
