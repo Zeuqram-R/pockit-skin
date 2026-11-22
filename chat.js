@@ -1,9 +1,9 @@
-/* Pockit chat v23 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v24 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 23;
+  var VERSION = 24;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -82,7 +82,7 @@
     "[data-cds='ChatComposer'] button:not([data-testid='chat-input-send']), [data-cds='ChatComposer'] button:not([data-testid='chat-input-send']) *{color:#FFFFFF !important;opacity:1 !important;background-color:transparent !important;box-shadow:none !important}",
     "[data-cds='ChatComposer'] button svg{color:#FFFFFF !important;opacity:1 !important}",
     /* v23: cada control de abajo en su propio recuadro de esquinas redondeadas (vidrio oscuro) */
-    ".pk-dock.pk-dock [data-cds='ChatComposer'] button:not([data-testid='chat-input-send']){background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:12px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding-left:8px !important;padding-right:8px !important}",
+    ".pk-dock.pk-dock button:not([data-testid='chat-input-send']):not([aria-label^='Quitar']):not([aria-label^='Remove']){background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:12px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding-left:8px !important;padding-right:8px !important}",
     "[data-cds='ChatComposer'] fieldset, [data-cds='ChatComposer'] fieldset > *{background:transparent !important;border-color:transparent !important}",
     /* v20: TODO lo de la caja de claude.ai sin fondo (solo queda la burbuja de vidrio y el botón de enviar) */
     ".pk-dock, .pk-dock::before, .pk-dock::after, .pk-dock *:not(.pk-glass):not([data-testid='chat-input-send']):not([data-testid='chat-input-send'] *), .pk-dock *:not(.pk-glass)::before, .pk-dock *:not(.pk-glass)::after{background-color:transparent !important;background-image:none !important;box-shadow:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important}",
