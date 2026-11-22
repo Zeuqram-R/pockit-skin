@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 36;
+  var VERSION = 37;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -114,10 +114,10 @@
     "[data-cds-part='composer-card'] .pk-sendbg.pk-sendbg.pk-stop{background-color:rgba(26,16,102,.6) !important;border:1px solid rgba(255,255,255,.25) !important}",
     ".pk-sendbg.pk-goo{animation:pkGoo .7s cubic-bezier(.3,1.4,.5,1)}",
     "@keyframes pkGoo{0%{transform:scale(1,1)}20%{transform:scale(1.22,.8)}40%{transform:scale(.84,1.18)}60%{transform:scale(1.08,.94)}80%{transform:scale(.97,1.03)}100%{transform:scale(1,1)}}",
-    ".pk-dock.pk-dock .pk-group.pk-group.pk-group{display:inline-flex !important;align-items:center !important;height:28px !important;background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:14px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding:0 4px !important;gap:0 !important}",
+    ".pk-dock.pk-dock .pk-group.pk-group.pk-group.pk-group.pk-group{display:inline-flex !important;align-items:center !important;height:28px !important;background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:14px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding:0 4px !important;gap:0 !important}",
     "[data-cds='ChatComposer'] fieldset, [data-cds='ChatComposer'] fieldset > *{background:transparent !important;border-color:transparent !important}",
     /* v20: TODO lo de la caja de claude.ai sin fondo (solo queda la burbuja de vidrio y el botón de enviar) */
-    ".pk-dock, .pk-dock::before, .pk-dock::after, .pk-dock *:not(.pk-glass):not(.pk-sendbg):not([data-testid='chat-input-send']):not([data-testid='chat-input-send'] *), .pk-dock *:not(.pk-glass)::before, .pk-dock *:not(.pk-glass)::after{background-color:transparent !important;background-image:none !important;box-shadow:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important}",
+    ".pk-dock, .pk-dock::before, .pk-dock::after, .pk-dock *:not(.pk-glass):not(.pk-sendbg):not(.pk-group):not([data-testid='chat-input-send']):not([data-testid='chat-input-send'] *), .pk-dock *:not(.pk-glass)::before, .pk-dock *:not(.pk-glass)::after{background-color:transparent !important;background-image:none !important;box-shadow:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important}",
     /* v20: solo la burbuja y los botones reciben toques; el resto del área deja pasar el toque al chat */
     ".pk-dock, .pk-dock *{pointer-events:none !important}",
     ".pk-dock button, .pk-dock button *, .pk-dock [role='button'], .pk-dock .ProseMirror, .pk-dock .ProseMirror *, .pk-dock input, .pk-dock a, .pk-dock select, .pk-dock label{pointer-events:auto !important}",
