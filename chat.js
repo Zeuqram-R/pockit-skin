@@ -1,9 +1,9 @@
-/* Pockit chat v27 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v28 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 27;
+  var VERSION = 28;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -464,10 +464,13 @@
     var btns = Array.prototype.filter.call(dock.querySelectorAll("button"), function (b) {
       if (b.matches("[data-testid='chat-input-send'], [aria-label^='Quitar'], [aria-label^='Remove']")) return false;
       if (b.closest(".ProseMirror, [data-testid='file-thumbnail']")) return false;
-      return !(b.textContent || "").trim() && b.getBoundingClientRect().width > 0;
+      var r = b.getBoundingClientRect();
+      // los de ícono son angostos (el texto que traen es solo para lectores de pantalla)
+      return r.width > 0 && r.width < 90;
     });
     var model = dock.querySelector("[data-testid='model-selector-dropdown']");
-    if (model) btns = btns.filter(function (b) { return b.getBoundingClientRect().left < model.getBoundingClientRect().left; });
+    var limit = model ? model.getBoundingClientRect().left : window.innerWidth / 2;
+    btns = btns.filter(function (b) { return b.getBoundingClientRect().left < limit && !(model && model.contains(b)); });
     btns.sort(function (x, y) { return x.getBoundingClientRect().left - y.getBoundingClientRect().left; });
     btns.forEach(function (b) { b.classList.remove("pk-circle", "pk-ingroup", "pk-gl", "pk-gr"); });
     if (btns.length >= 4) {
