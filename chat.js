@@ -1,9 +1,9 @@
-/* Pockit chat v30 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v31 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 30;
+  var VERSION = 31;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -88,17 +88,21 @@
     ".pk-dock.pk-dock button.pk-ingroup.pk-ingroup.pk-ingroup.pk-ingroup{background-color:transparent !important;border:none !important;box-shadow:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;padding-left:6px !important;padding-right:6px !important}",
     ".pk-dock.pk-dock button.pk-gl.pk-gl.pk-gl.pk-gl{height:28px !important;border-radius:14px 0 0 14px !important;border-right:none !important;margin-right:0 !important;padding-left:10px !important;padding-right:4px !important}",
     ".pk-dock.pk-dock button.pk-gr.pk-gr.pk-gr.pk-gr{height:28px !important;border-radius:0 14px 14px 0 !important;border-left:none !important;margin-left:-1px !important;padding-left:4px !important;padding-right:10px !important}",
-    /* v29: enviar / detener (a la par de la burbuja): círculo con el ícono centrado */
-    ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-sendbtn.pk-sendbtn{width:40px !important;min-width:40px !important;height:40px !important;padding:0 !important;border-radius:50% !important;display:inline-flex !important;align-items:center !important;justify-content:center !important}",
-    ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-sendbtn:not([data-testid='chat-input-send']){background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important}",
-    ".pk-dock.pk-dock button.pk-sendbtn > *{margin:0 !important;position:static !important;display:inline-flex !important;align-items:center !important;justify-content:center !important;inset:auto !important}",
     /* v30: con adjuntos la burbuja ocupa todo el ancho (adjunto arriba, texto abajo) */
     "[data-cds-part='composer-card'].pk-hasatt .ProseMirror{width:100% !important;max-width:100% !important;margin-left:0 !important}",
     "[data-cds-part='composer-card'].pk-hasatt [data-testid='file-thumbnail']{position:relative;z-index:1}",
     /* v30: íconos de los círculos más grandes y bien centrados */
-    ".pk-dock.pk-dock button.pk-sendbtn *, .pk-dock.pk-dock button.pk-circle *{margin:0 !important;padding:0 !important}",
-    ".pk-dock.pk-dock button.pk-sendbtn svg{width:22px !important;height:22px !important;display:block !important}",
-    ".pk-dock.pk-dock button.pk-sendbtn > span, .pk-dock.pk-dock button.pk-circle > span{width:100% !important;height:100% !important;display:flex !important;align-items:center !important;justify-content:center !important}",
+    /* v31: enviar/detener. El botón es transparente; detrás va una capa (.pk-sendbg) que cambia de forma:
+       cuadrado redondeado rosa (enviar) <-> círculo de vidrio (detener), con un "temblor" tipo simbionte. */
+    ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-sendbtn.pk-sendbtn{width:40px !important;min-width:40px !important;height:40px !important;padding:0 !important;border:none !important;background:transparent !important;display:grid !important;place-items:center !important;position:relative !important;z-index:2 !important}",
+    ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn > *{grid-area:1/1 !important;position:static !important;margin:0 !important;padding:0 !important;inset:auto !important;display:grid !important;place-items:center !important;width:auto !important;height:auto !important;transform:none !important}",
+    ".pk-dock.pk-dock button.pk-sendbtn svg{width:22px !important;height:22px !important;display:block !important;margin:0 !important}",
+    ".pk-sendbg{position:absolute;pointer-events:none;z-index:1;box-sizing:border-box;transition:left .3s cubic-bezier(.2,.8,.2,1), top .3s cubic-bezier(.2,.8,.2,1), border-radius .6s cubic-bezier(.34,1.56,.64,1), background-color .35s ease, border-color .35s ease, opacity .25s ease}",
+    ".pk-sendbg.pk-send{border-radius:13px;background-color:#CB84F8;border:1px solid rgba(255,255,255,.35)}",
+    ".pk-sendbg.pk-send.pk-off{opacity:.45}",
+    ".pk-sendbg.pk-stop{border-radius:50%;background-color:rgba(26,16,102,.6);border:1px solid rgba(255,255,255,.25);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}",
+    ".pk-sendbg.pk-goo{animation:pkGoo .7s cubic-bezier(.3,1.4,.5,1)}",
+    "@keyframes pkGoo{0%{transform:scale(1,1)}20%{transform:scale(1.22,.8)}40%{transform:scale(.84,1.18)}60%{transform:scale(1.08,.94)}80%{transform:scale(.97,1.03)}100%{transform:scale(1,1)}}",
     ".pk-dock.pk-dock .pk-group.pk-group.pk-group{display:inline-flex !important;align-items:center !important;height:28px !important;background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:14px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding:0 4px !important;gap:0 !important}",
     "[data-cds='ChatComposer'] fieldset, [data-cds='ChatComposer'] fieldset > *{background:transparent !important;border-color:transparent !important}",
     /* v20: TODO lo de la caja de claude.ai sin fondo (solo queda la burbuja de vidrio y el botón de enviar) */
@@ -481,6 +485,25 @@
   }, true);
   document.addEventListener("input", function () { try { syncGlass(); } catch (e) {} }, true);
   // botones de solo ícono del lado izquierdo (antes del selector de modelo), en orden
+  function placeSendBg(cardEl) {
+    var btn = cardEl.querySelector("button.pk-sendbtn");
+    var bg = cardEl.querySelector(":scope > .pk-sendbg");
+    if (!btn) { if (bg) bg.style.opacity = "0"; return; }
+    if (!bg) { bg = document.createElement("div"); bg.className = "pk-sendbg pk-send"; cardEl.appendChild(bg); }
+    var label = (btn.getAttribute("aria-label") || "") + " " + (btn.getAttribute("data-testid") || "");
+    var stop = /detener|stop|parar/i.test(label) || (!btn.matches("[data-testid='chat-input-send']") && !/enviar|send/i.test(label));
+    var mode = stop ? "pk-stop" : "pk-send";
+    if (!bg.classList.contains(mode)) {
+      bg.classList.remove("pk-send", "pk-stop", "pk-goo");
+      bg.classList.add(mode);
+      void bg.offsetWidth;
+      bg.classList.add("pk-goo");
+    }
+    bg.classList.toggle("pk-off", !stop && btn.disabled);
+    var cr = cardEl.getBoundingClientRect(), r = btn.getBoundingClientRect();
+    var size = 40, L = r.left + r.width / 2 - size / 2 - cr.left, T = r.top + r.height / 2 - size / 2 - cr.top;
+    bg.style.left = L + "px"; bg.style.top = T + "px"; bg.style.width = size + "px"; bg.style.height = size + "px"; bg.style.opacity = "";
+  }
   function groupControls(dock) {
     // botón de enviar/detener: el que está a la par de la burbuja (misma altura que la tarjeta de la caja)
     var cardEl = dock.querySelector("[data-cds-part='composer-card']");
@@ -492,6 +515,7 @@
         var isSend = r.width > 0 && mid >= cr.top && mid <= cr.bottom && r.left > cr.left + cr.width / 2;
         b.classList.toggle("pk-sendbtn", isSend);
       });
+      try { placeSendBg(cardEl); } catch (e) {}
     }
     var btns = Array.prototype.filter.call(dock.querySelectorAll("button"), function (b) {
       if (b.matches("[data-testid='chat-input-send'], [aria-label^='Quitar'], [aria-label^='Remove'], .pk-sendbtn")) return false;
