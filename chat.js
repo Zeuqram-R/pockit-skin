@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 33;
+  var VERSION = 34;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -338,10 +338,31 @@
     // aunque ya haya escrito algo (p. ej. si mandaste otro mensaje mientras respondía, o está usando herramientas).
     if (stopBtn && stopBtn.offsetParent !== null) waiting = true;
     if (streaming.length) waiting = true;
+    // v34: si escribís mientras ella responde, claude.ai cambia el botón de detener por el de enviar y los puntitos
+    // se iban. Ahora se quedan hasta que su último mensaje esté terminado (le aparece el botón de copiar).
+    if (waiting) { workingSticky = true; workingAt = Date.now(); }
+    else if (workingSticky) {
+      if (lastReplyDone(last) || Date.now() - workingAt > 120000) workingSticky = false; else waiting = true;
+    }
     return waiting;
   }
+  var workingSticky = false, workingAt = 0;
+  function lastReplyDone(last) {
+    if (!last || !last.matches("[data-testid='assistant-message']")) return !last || !document.querySelector("[data-testid='assistant-message']") ? true : false;
+    var row = last.closest("[data-testid='transcript-row']") || last.parentElement;
+    if (!row) return true;
+    return !!row.querySelector("button[aria-label*='Copiar' i], button[aria-label*='Copy' i], [data-testid*='copy' i], [data-testid*='action-bar' i]");
+  }
+  var dotsDockedSent = null;
+  function sendDocked(on) {
+    if (on === dotsDockedSent) return;
+    dotsDockedSent = on;
+    try { window.webkit.messageHandlers.pockit.postMessage({ type: "dotsDocked", on: on }); } catch (e) {}
+  }
   function placeDots(dots) {
-    var pm = document.querySelector("[data-cds-part='composer-card'] .ProseMirror") || document.querySelector("[data-cds-part='composer-card']");
+    // v34: se mide la burbuja rosa completa (con adjuntos), no solo el texto, pa' no quedar encima de ella
+    var pm = document.querySelector("[data-cds-part='composer-card'] > .pk-glass") ||
+             document.querySelector("[data-cds-part='composer-card'] .ProseMirror") || document.querySelector("[data-cds-part='composer-card']");
     if (!pm) return;
     var r = pm.getBoundingClientRect();
     var h = dots.offsetHeight || 34, w = dots.offsetWidth || 64;
@@ -349,6 +370,10 @@
     if (r.left < 14 + w + 10) top = r.top - h - 8;          // tu burbuja llegó: subir encima
     else top = r.bottom - h;                                 // a la par, alineados abajo como en iMessage
     var mode = r.left < 14 + w + 10 ? "above" : "beside";
+    // v34: si ya no caben arriba de la burbuja (la caja llena todo el chat), se van al retrato de Marisol
+    var docked = mode === "above" && top < 6;
+    sendDocked(docked);
+    dots.style.visibility = docked ? "hidden" : "";
     // solo se anima cuando sube/baja por tu burbuja; si la caja se mueve (scroll, teclado) la siguen al instante
     dots.style.transition = dots.dataset.mode && dots.dataset.mode !== mode ? "" : "none";
     dots.dataset.mode = mode;
@@ -379,8 +404,9 @@
         };
         dotsLoop = requestAnimationFrame(tick);
       }
-    } else if (dots) {
-      dots.remove();
+    } else {
+      if (dots) dots.remove();
+      sendDocked(false);
     }
   }
 
