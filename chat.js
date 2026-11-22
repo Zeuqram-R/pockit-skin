@@ -1,9 +1,9 @@
-/* Pockit chat v11 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v12 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 11;
+  var VERSION = 12;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -279,6 +279,10 @@
     var turns = document.querySelectorAll("[data-testid='user-message'], [data-testid='assistant-message']");
     var last = turns.length ? turns[turns.length - 1] : null;
     if (stopBtn && last && last.matches("[data-testid='user-message']")) waiting = true;
+    // v12: mientras Marisol esté trabajando (botón de detener o un mensaje en curso), los puntitos se quedan,
+    // aunque ya haya escrito algo (p. ej. si mandaste otro mensaje mientras respondía, o está usando herramientas).
+    if (stopBtn && stopBtn.offsetParent !== null) waiting = true;
+    if (streaming.length) waiting = true;
     return waiting;
   }
   function placeDots(dots) {
