@@ -1,9 +1,9 @@
-/* Pockit chat v13 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v14 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 13;
+  var VERSION = 14;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -58,8 +58,9 @@
     /* v10: burbuja de escribir de vidrio: el historial pasa por detrás y se ve borroso */
     /* v13: la burbuja en sí es transparente; el vidrio (rosa + desenfoque) es una capa aparte detrás (.pk-glass),
        así el cursor no se desalinea (WebKit lo mueve si la caja editable tiene desenfoque o está dentro de algo con efectos). */
-    "[data-cds-part='composer-card'] .ProseMirror{background:transparent !important;border:none !important;box-shadow:none !important;position:relative !important;z-index:1 !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important}",
-    ".pk-glass{position:absolute;pointer-events:none;z-index:0;background:rgba(203,132,248,.55);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);border:1px solid rgba(255,255,255,.3);border-radius:20px 20px 6px 20px;box-shadow:0 2px 12px rgba(0,0,0,.18)}",
+    "[data-cds-part='composer-card'] .ProseMirror{background:transparent !important;border:none !important;box-shadow:none !important;position:relative !important;z-index:1 !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;color:#FFFFFF !important;caret-color:#FFFFFF !important}",
+    "[data-cds-part='composer-card'] .ProseMirror *{color:#FFFFFF !important}",
+    ".pk-glass{position:absolute;pointer-events:none;z-index:0;background:rgba(203,132,248,.72);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);border:1px solid rgba(255,255,255,.3);border-radius:20px 20px 6px 20px;box-shadow:0 2px 12px rgba(0,0,0,.18)}",
     /* v11: el historial pasa limpio por detrás de la caja (sin franjas, máscaras ni fondos de claude.ai) */
     "[data-testid='chat-extra-space']{height:0 !important;min-height:0 !important;flex:0 0 0px !important}",
     "[data-testid='transcript-bottom-fade'], [data-testid='transcript-bottom-backing-start'], [data-testid='transcript-bottom-backing-end']{background:transparent !important;background-image:none !important;opacity:0 !important;-webkit-mask-image:none !important;mask-image:none !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important}",
@@ -404,14 +405,17 @@
     var host = pm.parentElement;
     while (host && host !== document.body && getComputedStyle(host).position === "static") host = host.parentElement;
     if (!host) return;
-    // la capa va como hermana (no como papá) de la caja editable
-    var holder = pm.parentElement;
+    // v14: la capa va directo en la tarjeta de la caja (no adentro del área con scroll, que la recortaba a la mitad)
+    var card = pm.closest("[data-cds-part='composer-card']");
+    var holder = card || pm.parentElement;
+    if (getComputedStyle(holder).position === "static") holder.style.position = "relative";
+    host = holder;
     var glass = holder.querySelector(":scope > .pk-glass");
     if (!glass) {
       document.querySelectorAll(".pk-glass").forEach(function (g) { g.remove(); });
       glass = document.createElement("div");
       glass.className = "pk-glass";
-      holder.insertBefore(glass, pm);
+      holder.insertBefore(glass, holder.firstChild);
     }
     var hr = host.getBoundingClientRect(), r = pm.getBoundingClientRect();
     var css = "left:" + (r.left - hr.left) + "px;top:" + (r.top - hr.top) + "px;width:" + r.width + "px;height:" + r.height + "px";
