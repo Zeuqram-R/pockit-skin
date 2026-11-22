@@ -1,9 +1,9 @@
-/* Pockit chat v26 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v27 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 26;
+  var VERSION = 27;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -86,6 +86,8 @@
     /* v26: + y micrófono en círculos; la onda y la flechita juntas en un solo rectángulo */
     ".pk-dock.pk-dock button.pk-circle.pk-circle.pk-circle.pk-circle{width:40px !important;min-width:40px !important;height:40px !important;padding:0 !important;border-radius:50% !important;display:inline-flex !important;align-items:center !important;justify-content:center !important}",
     ".pk-dock.pk-dock button.pk-ingroup.pk-ingroup.pk-ingroup.pk-ingroup{background-color:transparent !important;border:none !important;box-shadow:none !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;padding-left:6px !important;padding-right:6px !important}",
+    ".pk-dock.pk-dock button.pk-gl.pk-gl.pk-gl.pk-gl{height:40px !important;border-radius:14px 0 0 14px !important;border-right:none !important;margin-right:0 !important;padding-left:10px !important;padding-right:4px !important}",
+    ".pk-dock.pk-dock button.pk-gr.pk-gr.pk-gr.pk-gr{height:40px !important;border-radius:0 14px 14px 0 !important;border-left:none !important;margin-left:-1px !important;padding-left:4px !important;padding-right:10px !important}",
     ".pk-dock.pk-dock .pk-group.pk-group.pk-group{display:inline-flex !important;align-items:center !important;height:40px !important;background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:14px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding:0 4px !important;gap:0 !important}",
     "[data-cds='ChatComposer'] fieldset, [data-cds='ChatComposer'] fieldset > *{background:transparent !important;border-color:transparent !important}",
     /* v20: TODO lo de la caja de claude.ai sin fondo (solo queda la burbuja de vidrio y el botón de enviar) */
@@ -467,7 +469,7 @@
     var model = dock.querySelector("[data-testid='model-selector-dropdown']");
     if (model) btns = btns.filter(function (b) { return b.getBoundingClientRect().left < model.getBoundingClientRect().left; });
     btns.sort(function (x, y) { return x.getBoundingClientRect().left - y.getBoundingClientRect().left; });
-    btns.forEach(function (b) { b.classList.remove("pk-circle", "pk-ingroup"); });
+    btns.forEach(function (b) { b.classList.remove("pk-circle", "pk-ingroup", "pk-gl", "pk-gr"); });
     if (btns.length >= 4) {
       btns[0].classList.add("pk-circle"); btns[1].classList.add("pk-circle");
       var g1 = btns[2], g2 = btns[3];
@@ -476,6 +478,9 @@
       if (common && !common.contains(btns[1])) {
         common.classList.add("pk-group");
         g1.classList.add("pk-ingroup"); g2.classList.add("pk-ingroup");
+      } else {
+        // sin contenedor propio: se juntan visualmente como un solo rectángulo
+        g1.classList.add("pk-gl"); g2.classList.add("pk-gr");
       }
     } else {
       btns.forEach(function (b) { b.classList.add("pk-circle"); });
