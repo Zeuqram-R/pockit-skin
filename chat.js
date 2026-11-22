@@ -1,9 +1,9 @@
-/* Pockit chat v5 — conversación estilo iMessage con la paleta de Pockit.
+/* Pockit chat v6 — conversación estilo iMessage con la paleta de Pockit.
    Marca los mensajes con clases propias (pk-ubub = tuyo, pk-abub = Marisol, pk-composer = caja de escribir)
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 5;
+  var VERSION = 6;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -38,6 +38,11 @@
     ".pk-abub, .pk-abub *:not(pre):not(code):not(pre *){font-family:PockitFigtree, -apple-system, system-ui, sans-serif !important}",
     ".pk-abub p, .pk-abub li{font-size:16px !important;line-height:1.45 !important}",
     ".pk-hide{display:none !important}",
+    /* "…" de escribiendo, como en iMessage */
+    ".pk-typing{display:inline-flex;gap:5px;align-items:center;background:#3826A6;border-radius:20px 20px 20px 6px;padding:13px 16px;margin:4px 0}",
+    ".pk-typing i{width:8px;height:8px;border-radius:50%;background:#E5D6F2;opacity:.35;animation:pkDot 1.2s infinite ease-in-out}",
+    ".pk-typing i:nth-child(2){animation-delay:.18s}.pk-typing i:nth-child(3){animation-delay:.36s}",
+    "@keyframes pkDot{0%,60%,100%{opacity:.35;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}",
     /* Conversación nueva (página del proyecto) */
     ".pk-newchat .pk-newchat-box{position:fixed !important;left:12px !important;right:12px !important;bottom:8px !important;z-index:5 !important;margin:0 !important}",
     "#pk-hello{position:fixed;left:24px;right:24px;top:38%;text-align:center;pointer-events:none;font-family:PockitFigtree,-apple-system,system-ui,sans-serif}",
@@ -183,13 +188,31 @@
           if (rows.some(function (r) { return r.el === el || r.el.contains(el) || el.contains(r.el); })) break;
           var link = el.closest('a[href*="/chat/"]') || el.querySelector('a[href*="/chat/"]');
           var m = link && (link.getAttribute("href") || "").match(/\/chat\/([0-9a-f-]{20,})/i);
-          rows.push({ el: el, title: title.replace(/\s*(\.\.\.|…)\s*$/, "").slice(0, 120), when: t, id: m ? m[1] : "" });
+          var clean = cleanTitle(title);
+          rows.push({ el: el, title: clean, when: t, id: m ? m[1] : idFromSidebar(clean) });
           break;
         }
         el = el.parentElement;
       }
     }
     return rows;
+  }
+
+  // Quita íconos de letra (caracteres privados) y espacios raros del título.
+  function cleanTitle(t) {
+    return (t || "").replace(/[\uE000-\uF8FF\uFFFD\u200B-\u200F\u2028\u2029]/g, "").replace(/\s*(\.\.\.|…)\s*$/, "").replace(/\s+/g, " ").trim().slice(0, 120);
+  }
+
+  // La barra lateral de claude.ai (escondida) sí trae links /chat/… con el título: de ahí sale el id.
+  function idFromSidebar(title) {
+    var links = document.querySelectorAll('a[href*="/chat/"]');
+    for (var i = 0; i < links.length; i++) {
+      if (cleanTitle(links[i].textContent) === title) {
+        var m = (links[i].getAttribute("href") || "").match(/\/chat\/([0-9a-f-]{20,})/i);
+        if (m) return m[1];
+      }
+    }
+    return "";
   }
 
   var lastChatsSent = "";
@@ -205,43 +228,57 @@
 
   // Abre una conversación del proyecto tocando su fila (cuando claude.ai no da el link).
   window.pockitOpenProjectChat = function (title) {
-    var row = projectChats().filter(function (r) { return r.title === title; })[0];
+    var row = projectChats().filter(function (r) { return r.title === cleanTitle(title); })[0];
     if (!row) return false;
     var target = row.el.closest('a, [role="button"], button') || row.el;
     target.click();
     return true;
   };
 
-  // Página del proyecto = pantalla de conversación nueva: solo queda la caja de escribir (abajo) y un saludo.
-  function newChatScreen() {
-    var on = /^\/project\//.test(location.pathname);
-    document.documentElement.classList.toggle("pk-newchat", on);
+  // v4/v5 escondían la página del proyecto; ahora la pantalla de conversación nueva es nativa (Pockit la tapa).
+  function undoNewChatScreen() {
+    document.documentElement.classList.remove("pk-newchat");
     var hello = document.getElementById("pk-hello");
-    if (!on) { if (hello) hello.remove(); return; }
-    var c = findComposer();
-    if (!c) return;
-    var en = (window.__pockitPrefix || "").indexOf("lang:en") !== -1;
-    if (!hello) {
-      hello = document.createElement("div");
-      hello.id = "pk-hello";
-      document.body.appendChild(hello);
-    }
-    var html = '<div class="pk-hello-t">' + (en ? "New chat with Marisol" : "Conversación nueva con Marisol") + '</div>' +
-      '<div class="pk-hello-s">' + (en ? "Your old chats are in the panel on the left." : "Tus conversaciones viejas están en el panel de la izquierda.") + '</div>';
-    if (hello.innerHTML !== html) hello.innerHTML = html;
-    // Esconde todo lo que no sea la caja de escribir (sus 2 niveles de arriba se quedan: botones y modelo).
-    var level = 0, el = c;
-    while (el.parentElement && el.parentElement !== document.body) {
-      var parent = el.parentElement;
-      if (level >= 2) {
-        Array.from(parent.children).forEach(function (k) { if (k !== el && k.id !== "pk-hello") k.classList.add("pk-hide"); });
-      } else if (level === 1) {
-        el.classList.add("pk-newchat-box");
-      }
-      el = parent;
-      level++;
-    }
+    if (hello) hello.remove();
+    document.querySelectorAll(".pk-newchat-box").forEach(function (e) { e.classList.remove("pk-newchat-box"); });
   }
+
+  // Puntitos de "escribiendo" mientras Marisol responde y todavía no hay texto.
+  function typingDots() {
+    document.querySelectorAll("[data-testid='assistant-message']").forEach(function (m) {
+      var streaming = m.getAttribute("data-is-streaming") === "true";
+      var hasText = Array.from(m.querySelectorAll(".prose")).some(function (p) { return (p.textContent || "").trim().length > 0; });
+      var dots = m.querySelector(":scope > .pk-typing");
+      if (streaming && !hasText) {
+        if (!dots) {
+          dots = document.createElement("div");
+          dots.className = "pk-typing";
+          dots.innerHTML = "<i></i><i></i><i></i>";
+          m.insertBefore(dots, m.firstChild);
+        }
+      } else if (dots) {
+        dots.remove();
+      }
+    });
+  }
+
+  // Adjuntar un archivo desde Pockit (foto o archivo) al input de claude.ai.
+  window.pockitAttach = function (name, mime, b64) {
+    try {
+      var input = document.querySelector("[data-testid='file-upload']");
+      if (input && input.tagName !== "INPUT") input = input.querySelector("input[type='file']");
+      if (!input) input = document.querySelector("input[type='file']");
+      if (!input) return "no-input";
+      var bin = atob(b64), bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      var file = new File([bytes], name, { type: mime });
+      var dt = new DataTransfer();
+      dt.items.add(file);
+      input.files = dt.files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      return "ok";
+    } catch (e) { return "error: " + e; }
+  };
 
   // Botones debajo de cada mensaje que no son de iMessage: me gusta, no me gusta, leer en voz alta, reintentar.
   var ACTION_RE = /(good response|bad response|buena respuesta|mala respuesta|me gusta|no me gusta|thumbs|read aloud|leer en voz|escuchar|speak|retry|reintentar|regenerar|regenerate)/i;
@@ -309,10 +346,14 @@
     });
     var ai = findAI();
     ai.forEach(function (a) { a.classList.add("pk-abub"); });
-    findNoise(ai).forEach(function (n) { n.classList.add("pk-hide"); });
+    // v5 escondía por error mensajes enteros mientras Marisol escribía: se limpian.
+    document.querySelectorAll(".pk-hide").forEach(function (n) {
+      if (n.querySelector(".prose, [data-testid='user-message'], [data-testid='assistant-message'], [data-cds-part='composer-card'], .ProseMirror")) n.classList.remove("pk-hide");
+    });
+    typingDots();
     findClaudeNotices().forEach(function (n) { n.classList.add("pk-hide"); });
     sendProjectChats();
-    newChatScreen();
+    undoNewChatScreen();
     findActionButtons().forEach(function (n) { n.classList.add("pk-hide"); });
     var c = findComposer();
     if (c) c.classList.add("pk-composer");
