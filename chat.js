@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 43;
+  var VERSION = 44;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -534,7 +534,13 @@
     var natural = card.getBoundingClientRect().bottom - cur - vvOff;
     var target = (VH || window.innerHeight) - KB - 6;
     // también los controles (+, modelo) van encima del teclado: medimos el fondo del dock entero
-    var dockBottom = dock.getBoundingClientRect().bottom - cur - vvOff;
+    // v44: se alinea lo último que SE VE (la fila de botones), no el borde de la caja, que trae un relleno
+    // invisible abajo (pa' la rayita del iPhone) y dejaba la burbuja separada del teclado.
+    var dockBottom = natural;
+    dock.querySelectorAll("button").forEach(function (b) {
+      var rb = b.getBoundingClientRect();
+      if (rb.height > 0 && rb.width > 0) dockBottom = Math.max(dockBottom, rb.bottom - cur - vvOff);
+    });
     var want = KB ? Math.min(0, target - Math.max(natural, dockBottom)) : 0;
     if (Math.abs(want - dockShift) > 0.5) {
       dockShift = want;
