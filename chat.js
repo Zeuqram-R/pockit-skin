@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 42;
+  var VERSION = 43;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -576,6 +576,8 @@
       sc.classList.add("pk-edscroll");
       var sr0 = sc.getBoundingClientRect();
       T = Math.max(T, sr0.top); B = Math.min(B, sr0.bottom);
+      // v43: si hay scroll, la burbuja deja un margen arriba y abajo pa' que la barrita de scroll quede adentro
+      if (sc.scrollHeight > sc.clientHeight + 2) { T -= 12; B += 12; }
     }
     // v30: si hay adjuntos, van dentro de la burbuja, arriba del texto (como iMessage)
     var thumb = card ? card.querySelector("[data-testid='file-thumbnail']") : null;
