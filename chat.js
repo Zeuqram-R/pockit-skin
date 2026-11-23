@@ -752,7 +752,17 @@
 
   // v45: al mandar un mensaje claude.ai pone por ~1 s una caja "provisional" (Responder) sin nuestro estilo y más abajo;
   // se esconde, así la caja de verdad aparece directo en su lugar.
+  var lastSend = 0;
+  document.addEventListener("click", function (e) {
+    if (e.target.closest && e.target.closest("[data-testid='chat-input-send'], .pk-sendbtn")) lastSend = Date.now();
+  }, true);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey && e.target.closest && e.target.closest(".ProseMirror")) lastSend = Date.now();
+  }, true);
   function hideStaticComposer() {
+    // solo justo después de mandar (si no, nunca se toca: en otras pantallas podría ser la caja de verdad)
+    var recent = Date.now() - lastSend < 4000;
+    if (!recent) { document.querySelectorAll(".pk-static-hide").forEach(function (x) { x.classList.remove("pk-static-hide"); }); return; }
     var inp = document.querySelector("[data-testid='static-composer-input']");
     if (!inp) return;
     var el = inp;
