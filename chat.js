@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 44;
+  var VERSION = 45;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -114,6 +114,7 @@
     "[data-cds-part='composer-card'] .pk-sendbg.pk-sendbg.pk-stop{background-color:rgba(26,16,102,.6) !important;border:1px solid rgba(255,255,255,.25) !important}",
     /* v38: la barra lateral de claude.ai no se usa en Pockit (hay panel nativo de conversaciones) */
     ".pk-noside{display:none !important}",
+    ".pk-static-hide{opacity:0 !important;pointer-events:none !important}",
     /* v42: se puede hacer scroll dentro de la burbuja con texto largo (antes se movía el chat) */
     ".pk-dock.pk-dock .pk-edscroll, .pk-dock.pk-dock .pk-edscroll *{pointer-events:auto !important}",
     ".pk-edscroll{overscroll-behavior:contain !important;-webkit-overflow-scrolling:touch;touch-action:pan-y !important}",
@@ -749,8 +750,22 @@
     }
   }
 
+  // v45: al mandar un mensaje claude.ai pone por ~1 s una caja "provisional" (Responder) sin nuestro estilo y más abajo;
+  // se esconde, así la caja de verdad aparece directo en su lugar.
+  function hideStaticComposer() {
+    var inp = document.querySelector("[data-testid='static-composer-input']");
+    if (!inp) return;
+    var el = inp;
+    for (var k = 0; k < 10 && el.parentElement && el.parentElement !== document.body; k++) {
+      var pos = getComputedStyle(el).position;
+      if (pos === "sticky" || pos === "fixed" || pos === "absolute") break;
+      el = el.parentElement;
+    }
+    if (!el.querySelector(".ProseMirror")) el.classList.add("pk-static-hide");
+  }
+
   function layoutChat() {
-    try { hideClaudeSidebar(); hideAgentPanel(); } catch (e) {}
+    try { hideClaudeSidebar(); hideAgentPanel(); hideStaticComposer(); } catch (e) {}
     try { syncGlass(); } catch (e) {}
     var card = document.querySelector("[data-cds-part='composer-card']");
     if (!card) return;
