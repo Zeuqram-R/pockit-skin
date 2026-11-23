@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 40;
+  var VERSION = 41;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -115,6 +115,13 @@
     /* v38: la barra lateral de claude.ai no se usa en Pockit (hay panel nativo de conversaciones) */
     ".pk-noside{display:none !important}",
     "[data-testid='sidebar'], [data-testid='sidebar-compact-trigger']{display:none !important}",
+    ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-sendbtn{isolation:isolate !important;overflow:visible !important}",
+    ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-m-send::before, .pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-m-stop::before{content:'' !important;display:block !important;position:absolute !important;left:50% !important;top:50% !important;width:40px !important;height:40px !important;margin:-20px 0 0 -20px !important;box-sizing:border-box !important;z-index:-1 !important;pointer-events:none !important;transition:border-radius .6s cubic-bezier(.34,1.56,.64,1), background-color .35s, border-color .35s, opacity .25s !important}",
+    ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-m-send::before{border-radius:13px !important;background-color:#CB84F8 !important;border:1px solid rgba(255,255,255,.35) !important;box-shadow:0 2px 8px rgba(0,0,0,.2) !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;opacity:1 !important}",
+    ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-m-send.pk-m-off::before{opacity:.45 !important}",
+    ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-m-stop::before{border-radius:50% !important;background-color:rgba(26,16,102,.6) !important;border:1px solid rgba(255,255,255,.25) !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;opacity:1 !important}",
+    ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-m-goo::before{animation:pkGoo .7s cubic-bezier(.3,1.4,.5,1) !important}",
+    ".pk-sendbg{display:none !important}",
     ".pk-sendbg.pk-goo{animation:pkGoo .7s cubic-bezier(.3,1.4,.5,1)}",
     "@keyframes pkGoo{0%{transform:scale(1,1)}20%{transform:scale(1.22,.8)}40%{transform:scale(.84,1.18)}60%{transform:scale(1.08,.94)}80%{transform:scale(.97,1.03)}100%{transform:scale(1,1)}}",
     ".pk-dock.pk-dock .pk-group.pk-group.pk-group.pk-group.pk-group{display:inline-flex !important;align-items:center !important;height:28px !important;background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:14px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding:0 4px !important;gap:0 !important}",
@@ -597,24 +604,25 @@
   document.addEventListener("focusout", function () { glassUntil = Date.now() + 400; runGlass(); }, true);
   document.addEventListener("input", function () { glassUntil = Math.max(glassUntil, Date.now() + 250); runGlass(); }, true);
   // botones de solo ícono del lado izquierdo (antes del selector de modelo), en orden
+  // v41: el fondo rosa / de vidrio ahora es parte del mismo botón (::before), así nunca se despega de la flecha
+  // cuando la burbuja crece.
   function placeSendBg(cardEl) {
+    var old = cardEl.querySelector(":scope > .pk-sendbg"); if (old) old.remove();
     var btn = cardEl.querySelector("button.pk-sendbtn");
-    var bg = cardEl.querySelector(":scope > .pk-sendbg");
-    if (!btn) { if (bg) bg.style.opacity = "0"; return; }
-    if (!bg) { bg = document.createElement("div"); bg.className = "pk-sendbg pk-send"; cardEl.appendChild(bg); }
+    document.querySelectorAll("button.pk-m-send, button.pk-m-stop").forEach(function (b) {
+      if (b !== btn) b.classList.remove("pk-m-send", "pk-m-stop", "pk-m-off", "pk-m-goo");
+    });
+    if (!btn) return;
     var label = (btn.getAttribute("aria-label") || "") + " " + (btn.getAttribute("data-testid") || "");
     var stop = /detener|stop|parar/i.test(label) || (!btn.matches("[data-testid='chat-input-send']") && !/enviar|send/i.test(label));
-    var mode = stop ? "pk-stop" : "pk-send";
-    if (!bg.classList.contains(mode)) {
-      bg.classList.remove("pk-send", "pk-stop", "pk-goo");
-      bg.classList.add(mode);
-      void bg.offsetWidth;
-      bg.classList.add("pk-goo");
+    var mode = stop ? "pk-m-stop" : "pk-m-send";
+    if (!btn.classList.contains(mode)) {
+      var had = btn.classList.contains("pk-m-send") || btn.classList.contains("pk-m-stop");
+      btn.classList.remove("pk-m-send", "pk-m-stop", "pk-m-goo");
+      btn.classList.add(mode);
+      if (had) { void btn.offsetWidth; btn.classList.add("pk-m-goo"); }
     }
-    bg.classList.toggle("pk-off", !stop && btn.disabled);
-    var cr = cardEl.getBoundingClientRect(), r = btn.getBoundingClientRect();
-    var size = 40, L = r.left + r.width / 2 - size / 2 - cr.left, T = r.top + r.height / 2 - size / 2 - cr.top;
-    bg.style.left = L + "px"; bg.style.top = T + "px"; bg.style.width = size + "px"; bg.style.height = size + "px"; bg.style.opacity = "";
+    btn.classList.toggle("pk-m-off", !stop && btn.disabled);
   }
   function groupControls(dock) {
     // botón de enviar/detener: el que está a la par de la burbuja (misma altura que la tarjeta de la caja)
