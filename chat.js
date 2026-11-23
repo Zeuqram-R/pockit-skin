@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 39;
+  var VERSION = 40;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -690,6 +690,9 @@
   // v39: en las sesiones con agente claude.ai abre un panel (Progreso / Salidas / Usado en esta sesión) encima del chat.
   var lastPanelCheck = 0;
   function hideAgentPanel() {
+    document.querySelectorAll(".pk-noside").forEach(function (x) {
+      if (x.querySelector("[data-testid='chat-input'], [data-testid='transcript-list'], [data-testid='chat-column'], .ProseMirror")) x.classList.remove("pk-noside");
+    });
     if (Date.now() - lastPanelCheck < 1500) return;
     lastPanelCheck = Date.now();
     var heads = document.querySelectorAll("h1,h2,h3,h4,span,div");
@@ -702,6 +705,8 @@
       for (var k = 0; k < 12 && el.parentElement; k++) {
         el = el.parentElement;
         if (el.matches && el.matches("[data-testid='primary-pane'], [data-testid='pane-scroller'], main, body")) break;
+        // v40: nunca esconder algo que contenga el chat o la caja de escribir (en v39 eso borraba todo en el iPhone)
+        if (el.querySelector("[data-testid='chat-input'], [data-testid='transcript-list'], [data-testid='pane-scroller'], [data-testid='chat-column'], .ProseMirror")) break;
         var all = el.innerText || "";
         var r = el.getBoundingClientRect();
         if (/(Progreso|Progress)/.test(all) && /(Usado en esta sesión|Used in this session)/.test(all) && r.width < 560 && r.height > 200) {
