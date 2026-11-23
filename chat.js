@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 41;
+  var VERSION = 42;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -114,6 +114,9 @@
     "[data-cds-part='composer-card'] .pk-sendbg.pk-sendbg.pk-stop{background-color:rgba(26,16,102,.6) !important;border:1px solid rgba(255,255,255,.25) !important}",
     /* v38: la barra lateral de claude.ai no se usa en Pockit (hay panel nativo de conversaciones) */
     ".pk-noside{display:none !important}",
+    /* v42: se puede hacer scroll dentro de la burbuja con texto largo (antes se movía el chat) */
+    ".pk-dock.pk-dock .pk-edscroll, .pk-dock.pk-dock .pk-edscroll *{pointer-events:auto !important}",
+    ".pk-edscroll{overscroll-behavior:contain !important;-webkit-overflow-scrolling:touch;touch-action:pan-y !important}",
     "[data-testid='sidebar'], [data-testid='sidebar-compact-trigger']{display:none !important}",
     ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-sendbtn{isolation:isolate !important;overflow:visible !important}",
     ".pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-m-send::before, .pk-dock.pk-dock button.pk-sendbtn.pk-sendbtn.pk-m-stop::before{content:'' !important;display:block !important;position:absolute !important;left:50% !important;top:50% !important;width:40px !important;height:40px !important;margin:-20px 0 0 -20px !important;box-sizing:border-box !important;z-index:-1 !important;pointer-events:none !important;transition:border-radius .6s cubic-bezier(.34,1.56,.64,1), background-color .35s, border-color .35s, opacity .25s !important}",
@@ -561,6 +564,19 @@
     }
     var hr = host.getBoundingClientRect(), r = pm.getBoundingClientRect();
     var L = r.left, T = r.top, Rr = r.right, B = r.bottom;
+    // v42: con texto largo el editor tiene su propio scroll; la burbuja mide solo la parte visible
+    // (antes medía todo el texto y arriba quedaba un pedazo de vidrio vacío)
+    var sc = pm.parentElement;
+    while (sc && sc !== card) {
+      var ov = getComputedStyle(sc).overflowY;
+      if (ov === "auto" || ov === "scroll") break;
+      sc = sc.parentElement;
+    }
+    if (sc && sc !== card) {
+      sc.classList.add("pk-edscroll");
+      var sr0 = sc.getBoundingClientRect();
+      T = Math.max(T, sr0.top); B = Math.min(B, sr0.bottom);
+    }
     // v30: si hay adjuntos, van dentro de la burbuja, arriba del texto (como iMessage)
     var thumb = card ? card.querySelector("[data-testid='file-thumbnail']") : null;
     if (card) card.classList.toggle("pk-hasatt", !!thumb);
