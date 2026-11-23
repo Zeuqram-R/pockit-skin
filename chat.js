@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 37;
+  var VERSION = 38;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -112,6 +112,8 @@
     /* v36: la regla vieja que vuelve transparente todo dentro de la tarjeta le borraba el rosa */
     "[data-cds-part='composer-card'] .pk-sendbg.pk-sendbg.pk-send{background-color:#CB84F8 !important;border:1px solid rgba(255,255,255,.35) !important;box-shadow:0 2px 8px rgba(0,0,0,.2) !important}",
     "[data-cds-part='composer-card'] .pk-sendbg.pk-sendbg.pk-stop{background-color:rgba(26,16,102,.6) !important;border:1px solid rgba(255,255,255,.25) !important}",
+    /* v38: la barra lateral de claude.ai no se usa en Pockit (hay panel nativo de conversaciones) */
+    ".pk-noside{display:none !important}",
     ".pk-sendbg.pk-goo{animation:pkGoo .7s cubic-bezier(.3,1.4,.5,1)}",
     "@keyframes pkGoo{0%{transform:scale(1,1)}20%{transform:scale(1.22,.8)}40%{transform:scale(.84,1.18)}60%{transform:scale(1.08,.94)}80%{transform:scale(.97,1.03)}100%{transform:scale(1,1)}}",
     ".pk-dock.pk-dock .pk-group.pk-group.pk-group.pk-group.pk-group{display:inline-flex !important;align-items:center !important;height:28px !important;background-color:rgba(26,16,102,.55) !important;border:1px solid rgba(255,255,255,.22) !important;border-radius:14px !important;-webkit-backdrop-filter:blur(10px) !important;backdrop-filter:blur(10px) !important;box-shadow:0 1px 6px rgba(0,0,0,.18) !important;padding:0 4px !important;gap:0 !important}",
@@ -662,7 +664,30 @@
       btns.forEach(function (b) { b.classList.add("pk-circle"); });
     }
   }
+  // v38: en iPad / pantallas anchas claude.ai dejaba su barra lateral (Crear, Buscar, Proyectos…) encima del chat.
+  function hideClaudeSidebar() {
+    var cands = document.querySelectorAll("nav, aside, [role='navigation']");
+    for (var i = 0; i < cands.length; i++) {
+      var n = cands[i];
+      if (n.classList.contains("pk-noside") || n.closest(".pk-dock")) continue;
+      var txt = n.innerText || "";
+      var a = /(^|\n)\s*(Crear|New chat|Nuevo chat|Create)\s*(\n|$)/.test(txt), b = /(^|\n)\s*(Buscar|Search)\s*(\n|$)/.test(txt);
+      if (!(a && b)) continue;
+      var r = n.getBoundingClientRect();
+      if (r.width > 460) continue;
+      // subir hasta el contenedor que solo envuelve la barra
+      var el = n;
+      while (el.parentElement && el.parentElement !== document.body) {
+        var pr = el.parentElement.getBoundingClientRect();
+        if (Math.abs(pr.width - r.width) > 4 || Math.abs(pr.left - r.left) > 4) break;
+        el = el.parentElement;
+      }
+      el.classList.add("pk-noside");
+    }
+  }
+
   function layoutChat() {
+    try { hideClaudeSidebar(); } catch (e) {}
     try { syncGlass(); } catch (e) {}
     var card = document.querySelector("[data-cds-part='composer-card']");
     if (!card) return;
