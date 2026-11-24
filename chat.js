@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 50;
+  var VERSION = 51;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -120,10 +120,22 @@
     "[data-testid='user-message'], [data-testid='assistant-message']{-webkit-touch-callout:none !important;-webkit-user-select:none !important;user-select:none !important}",
     ".pk-msgmenu-bg{position:fixed;inset:0;z-index:2147483600;background:rgba(10,6,30,.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);opacity:0;transition:opacity .18s ease}",
     ".pk-msgmenu-bg.pk-on{opacity:1}",
-    ".pk-msgmenu{position:fixed;z-index:2147483601;min-width:190px;border-radius:16px;overflow:hidden;background:rgba(43,26,140,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.16);box-shadow:0 12px 40px rgba(0,0,0,.45);transform:scale(.85);opacity:0;transform-origin:var(--pk-origin,top right);transition:transform .2s cubic-bezier(.3,1.4,.5,1),opacity .15s ease}",
-    ".pk-msgmenu.pk-on{transform:scale(1);opacity:1}",
+    // v51: el menú sale como globo de cómic: crece desde la burbuja con rebote y una colita que la apunta; al cerrar se encoge
+    ".pk-msgmenu{position:fixed;z-index:2147483601;min-width:190px;border-radius:18px;background:rgba(43,26,140,.95);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border:1.5px solid rgba(255,255,255,.22);box-shadow:0 14px 40px rgba(0,0,0,.45);transform-origin:var(--pk-origin,top right);opacity:0;transform:scale(.2)}",
+    ".pk-msgmenu-in{overflow:hidden;border-radius:16px}",
+    ".pk-msgmenu::before{content:'';position:absolute;width:16px;height:16px;background:rgba(43,26,140,.95);border:1.5px solid rgba(255,255,255,.22);border-right:0;border-bottom:0;transform:rotate(45deg);left:var(--pk-tail-x,24px)}",
+    ".pk-msgmenu.pk-below::before{top:-9px}",
+    ".pk-msgmenu.pk-above::before{bottom:-9px;transform:rotate(225deg)}",
+    "@keyframes pkPop{0%{opacity:0;transform:scale(.2) rotate(-6deg)}55%{opacity:1;transform:scale(1.08) rotate(1.5deg)}75%{transform:scale(.96) rotate(-.5deg)}100%{opacity:1;transform:scale(1) rotate(0)}}",
+    "@keyframes pkPopOut{0%{opacity:1;transform:scale(1)}30%{transform:scale(1.05)}100%{opacity:0;transform:scale(.2) rotate(4deg)}}",
+    "@keyframes pkItem{0%{opacity:0;transform:translateY(6px)}100%{opacity:1;transform:none}}",
+    ".pk-msgmenu.pk-on{animation:pkPop .42s cubic-bezier(.2,.9,.3,1.2) forwards}",
+    ".pk-msgmenu.pk-off{animation:pkPopOut .22s ease-in forwards}",
+    ".pk-msgmenu.pk-on button{animation:pkItem .3s ease-out both}",
+    ".pk-msgmenu.pk-on button:nth-child(2){animation-delay:.06s}",
+    ".pk-msgmenu-bg{transition:opacity .25s ease !important}",
     ".pk-msgmenu button{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;padding:13px 16px;background:none;border:0;color:#FFF4E6;font:500 16px PockitFigtree,-apple-system,system-ui,sans-serif;text-align:left}",
-    ".pk-msgmenu button + button{border-top:1px solid rgba(255,255,255,.1)}",
+    ".pk-msgmenu-in button + button{border-top:1px solid rgba(255,255,255,.1)}",
     ".pk-msgmenu button:active{background:rgba(255,255,255,.12)}",
     ".pk-msgmenu svg{width:19px;height:19px;flex:none;stroke:#E9D5FF;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}",
     ".pk-msglift{transition:transform .2s cubic-bezier(.3,1.4,.5,1) !important;transform:scale(1.03) !important;position:relative;z-index:2147483601 !important}",
@@ -839,9 +851,9 @@
   function closeMsgMenu() {
     var bg = document.querySelector(".pk-msgmenu-bg"), mn = document.querySelector(".pk-msgmenu");
     if (bg) bg.classList.remove("pk-on");
-    if (mn) mn.classList.remove("pk-on");
+    if (mn) { mn.classList.remove("pk-on"); mn.classList.add("pk-off"); }
     document.querySelectorAll(".pk-msglift").forEach(function (e) { e.classList.remove("pk-msglift"); });
-    setTimeout(function () { if (bg) bg.remove(); if (mn) mn.remove(); }, 200);
+    setTimeout(function () { if (bg) bg.remove(); if (mn) mn.remove(); }, 260);
   }
   function copyText(t) {
     try { window.webkit.messageHandlers.pockit.postMessage({ type: "copyText", text: t }); } catch (e) {}
@@ -856,11 +868,12 @@
     try { window.webkit.messageHandlers.pockit.postMessage({ type: "haptic" }); } catch (e) {}
     var bg = document.createElement("div"); bg.className = "pk-msgmenu-bg";
     var mn = document.createElement("div"); mn.className = "pk-msgmenu";
+    var inner = document.createElement("div"); inner.className = "pk-msgmenu-in"; mn.appendChild(inner);
     function add(label, icon, fn) {
       var b = document.createElement("button"); b.type = "button";
       b.innerHTML = "<span>" + label + "</span>" + icon;
       b.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); closeMsgMenu(); setTimeout(fn, 60); });
-      mn.appendChild(b);
+      inner.appendChild(b);
     }
     var es = (document.documentElement.lang || navigator.language || "es").indexOf("es") === 0;
     add(es ? "Copiar" : "Copy", ICON_COPY, function () {
@@ -877,12 +890,16 @@
     bg.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
     document.body.appendChild(bg); document.body.appendChild(mn);
     var mw = mn.offsetWidth || 200, mh = mn.offsetHeight || 100, vh = window.innerHeight, vw = window.innerWidth;
-    var below = r.bottom + 10 + mh < vh - 90;
-    var top = below ? Math.min(r.bottom + 10, vh - mh - 10) : Math.max(r.top - mh - 10, 10);
+    var below = r.bottom + 14 + mh < vh - 90;
+    var top = below ? Math.min(r.bottom + 14, vh - mh - 10) : Math.max(r.top - mh - 14, 10);
     var left = isUser ? Math.max(10, Math.min(r.right - mw, vw - mw - 10)) : Math.max(10, Math.min(r.left, vw - mw - 10));
     mn.style.top = top + "px"; mn.style.left = left + "px";
-    mn.style.setProperty("--pk-origin", (below ? "top " : "bottom ") + (isUser ? "right" : "left"));
-    requestAnimationFrame(function () { bg.classList.add("pk-on"); mn.classList.add("pk-on"); });
+    var tailX = Math.max(14, Math.min(mw - 30, (isUser ? Math.min(r.right - 40, r.left + r.width / 2) : r.left + 30) - left));
+    mn.style.setProperty("--pk-tail-x", tailX + "px");
+    mn.style.setProperty("--pk-origin", (below ? "top " : "bottom ") + (tailX + 8) + "px");
+    mn.classList.add(below ? "pk-below" : "pk-above");
+    void mn.offsetWidth;
+    requestAnimationFrame(function () { requestAnimationFrame(function () { bg.classList.add("pk-on"); mn.classList.add("pk-on"); }); });
   }
   document.addEventListener("touchstart", function (e) {
     if (e.touches.length !== 1) { clearTimeout(lpTimer); return; }
