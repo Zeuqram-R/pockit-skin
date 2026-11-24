@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 52;
+  var VERSION = 53;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -146,6 +146,11 @@
     "@keyframes pkLift{0%{transform:scale(1)}60%{transform:scale(1.05)}100%{transform:scale(1.03)}}",
     ".pk-msglift{transition:transform .2s cubic-bezier(.3,1.4,.5,1) !important;transform:scale(1.03) !important;position:relative;z-index:2147483601 !important}",
     ".pk-static-hide{opacity:0 !important;pointer-events:none !important}",
+    // v53: a veces claude.ai deja su caja gris "Responder" (sin la caja de verdad); ahora se ve como nuestra burbuja rosa
+    "[data-testid='static-composer-input']{background:rgba(203,132,248,.72) !important;-webkit-backdrop-filter:blur(18px) saturate(1.5) !important;backdrop-filter:blur(18px) saturate(1.5) !important;border:1px solid rgba(255,255,255,.3) !important;border-radius:20px 20px 6px 20px !important;box-shadow:0 2px 12px rgba(0,0,0,.18) !important;color:#1A1066 !important}",
+    "[data-testid='static-composer-input'] *{background:transparent !important;color:rgba(26,16,102,.62) !important;border-color:transparent !important}",
+    // el botón de copiar de las respuestas de Marisol (se copia manteniendo presionado)
+    "[data-testid='pane-scroller'] button[aria-label='Copiar' i]:not([data-testid='user-message-actions'] *), [data-testid='pane-scroller'] button[aria-label='Copy' i]:not([data-testid='user-message-actions'] *), [data-testid='pane-scroller'] button[aria-label*='Copiar respuesta' i], [data-testid='pane-scroller'] button[aria-label*='Copy response' i]{display:none !important}",
     /* v42: se puede hacer scroll dentro de la burbuja con texto largo (antes se movía el chat) */
     ".pk-dock.pk-dock .pk-edscroll, .pk-dock.pk-dock .pk-edscroll *{pointer-events:auto !important}",
     ".pk-edscroll{overscroll-behavior:contain !important;-webkit-overflow-scrolling:touch;touch-action:pan-y !important}",
