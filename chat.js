@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 48;
+  var VERSION = 49;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -24,7 +24,7 @@
     "[data-cds-part='composer-card'] .ProseMirror p::before, [data-cds-part='composer-card'] .ProseMirror .is-empty::before, [data-cds-part='composer-card'] .ProseMirror .is-editor-empty::before{content:none !important;display:none !important}",
     "[data-testid='hub-composer-notices']{display:none !important}",
     "[data-testid='sidebar-compact-trigger']{display:none !important}",
-    "[data-testid='chat-header'], [data-testid='chat-footer-row'], [data-testid='action-bar-read-aloud'], [data-testid='action-bar-retry'], [data-testid='user-message-actions'], [data-testid='assistant-message'] [class*='group/status'], button[aria-label='Buena respuesta'], button[aria-label='Mala respuesta'], button[aria-label='Good response'], button[aria-label='Bad response']{display:none !important}",
+    "[data-testid='chat-header'], [data-testid='chat-footer-row'], [data-testid='action-bar-read-aloud'], [data-testid='action-bar-retry'], [data-testid='assistant-message'] [class*='group/status'], button[aria-label='Buena respuesta'], button[aria-label='Mala respuesta'], button[aria-label='Good response'], button[aria-label='Bad response']{display:none !important}",
     "[data-testid='assistant-message'] .prose{background:#3826A6 !important;color:#FFFFFF !important;border-radius:20px 20px 20px 6px !important;padding:12px 16px !important;margin-right:auto !important;width:fit-content !important;max-width:90% !important;box-shadow:0 1px 0 rgba(0,0,0,.18) !important}",
     "[data-testid='assistant-message'] .prose *:not(pre):not(code):not(pre *){font-family:PockitFigtree, -apple-system, system-ui, sans-serif !important}",
     "[data-testid='assistant-message'] .prose p, [data-testid='assistant-message'] .prose li{color:#FFFFFF !important;font-size:16px !important;line-height:1.45 !important}",
@@ -115,6 +115,11 @@
     /* v38: la barra lateral de claude.ai no se usa en Pockit (hay panel nativo de conversaciones) */
     ".pk-noside{display:none !important}",
     ".pk-usage-hide{display:none !important}",
+    // v49: debajo de cada mensaje tuyo, siempre visibles: copiar y editar
+    "[data-testid='user-message-actions']{opacity:1 !important;visibility:visible !important;pointer-events:auto !important;display:flex !important;justify-content:flex-end !important;gap:6px !important;margin-top:6px !important;transform:none !important}",
+    "[data-testid='user-message-actions'] *{opacity:1 !important;visibility:visible !important;pointer-events:auto !important}",
+    "[data-testid='user-message-actions'] button{width:34px !important;height:34px !important;border-radius:17px !important;background:rgba(203,132,248,.16) !important;color:#E9D5FF !important;display:inline-flex !important;align-items:center !important;justify-content:center !important}",
+    "[data-testid='user-message-actions'] button:active{background:rgba(203,132,248,.35) !important}",
     ".pk-static-hide{opacity:0 !important;pointer-events:none !important}",
     /* v42: se puede hacer scroll dentro de la burbuja con texto largo (antes se movía el chat) */
     ".pk-dock.pk-dock .pk-edscroll, .pk-dock.pk-dock .pk-edscroll *{pointer-events:auto !important}",
@@ -343,7 +348,15 @@
   // Puntitos de "escribiendo": a la izquierda, a la misma altura que tu burbuja de escribir. No se van al scrollear.
   // Si tu burbuja crece hasta alcanzarlos, suben con animación y quedan encima de ella.
   var dotsLoop = null;
+  // v49: al tocar detener, los puntitos se van de una vez (antes se quedaban hasta 2 minutos)
+  var stoppedAt = 0;
+  function markStop() { stoppedAt = Date.now(); workingSticky = false; }
+  function isStopBtn(el) {
+    var b = el && el.closest && el.closest("button");
+    return !!(b && /detener|stop|parar/i.test(b.getAttribute("aria-label") || ""));
+  }
   function isWaiting() {
+    if (Date.now() - stoppedAt < 3000) return false;
     var streaming = Array.from(document.querySelectorAll("[data-testid='assistant-message'][data-is-streaming='true']"));
     var waiting = streaming.some(function (m) {
       return !Array.from(m.querySelectorAll(".prose")).some(function (p) { return (p.textContent || "").trim().length > 0; });
@@ -757,7 +770,8 @@
   // v47: se marca al tocar (no al soltar): claude.ai reemplaza la caja antes de que llegue el "click"
   ["pointerdown", "touchstart", "mousedown", "click"].forEach(function (ev) {
     document.addEventListener(ev, function (e) {
-      if (e.target.closest && e.target.closest("[data-testid='chat-input-send'], .pk-sendbtn")) lastSend = Date.now();
+      if (isStopBtn(e.target)) markStop();
+      else if (e.target.closest && e.target.closest("[data-testid='chat-input-send'], .pk-sendbtn")) lastSend = Date.now();
     }, { capture: true, passive: true });
   });
   document.addEventListener("keydown", function (e) {
@@ -798,6 +812,22 @@
     }
   }
 
+  // v49: si claude.ai avisa que la conversación no existe, la app la quita de la barra lateral
+  var missingSent = "";
+  function checkMissingChat() {
+    var m = location.pathname.match(/\/chat\/([0-9a-f-]{20,})/i);
+    if (!m || missingSent === m[1]) return;
+    var els = document.querySelectorAll("[role='alert'], [role='status'], [data-sonner-toast], [role='dialog'], h1, h2");
+    for (var i = 0; i < els.length; i++) {
+      var tx = (els[i].textContent || "").trim();
+      if (tx.length > 0 && tx.length < 200 && /(no existe|ya no existe|doesn['’]t exist|does not exist|not found|no se encontr)/i.test(tx)) {
+        missingSent = m[1];
+        try { window.webkit.messageHandlers.pockit.postMessage({ type: "chatMissing", chatID: m[1] }); } catch (e) {}
+        return;
+      }
+    }
+  }
+
   function hideStaticComposer() {
     // solo justo después de mandar (si no, nunca se toca: en otras pantallas podría ser la caja de verdad)
     var recent = Date.now() - lastSend < 4000;
@@ -814,7 +844,7 @@
   }
 
   function layoutChat() {
-    try { hideClaudeSidebar(); hideAgentPanel(); hideStaticComposer(); hideUsageBanner(); } catch (e) {}
+    try { hideClaudeSidebar(); hideAgentPanel(); hideStaticComposer(); hideUsageBanner(); checkMissingChat(); } catch (e) {}
     try { syncGlass(); } catch (e) {}
     var card = document.querySelector("[data-cds-part='composer-card']");
     if (!card) return;
@@ -937,7 +967,7 @@
 
   window.pockitStop = function () {
     var b = document.querySelector("button[aria-label*='Detener' i], button[aria-label*='Stop' i], button[aria-label*='Parar' i]");
-    if (b) { b.click(); return true; }
+    if (b) { markStop(); b.click(); return true; }
     return false;
   };
 
