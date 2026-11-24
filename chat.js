@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 46;
+  var VERSION = 47;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -753,12 +753,16 @@
   // v45: al mandar un mensaje claude.ai pone por ~1 s una caja "provisional" (Responder) sin nuestro estilo y más abajo;
   // se esconde, así la caja de verdad aparece directo en su lugar.
   var lastSend = 0;
-  document.addEventListener("click", function (e) {
-    if (e.target.closest && e.target.closest("[data-testid='chat-input-send'], .pk-sendbtn")) lastSend = Date.now();
-  }, true);
+  // v47: se marca al tocar (no al soltar): claude.ai reemplaza la caja antes de que llegue el "click"
+  ["pointerdown", "touchstart", "mousedown", "click"].forEach(function (ev) {
+    document.addEventListener(ev, function (e) {
+      if (e.target.closest && e.target.closest("[data-testid='chat-input-send'], .pk-sendbtn")) lastSend = Date.now();
+    }, { capture: true, passive: true });
+  });
   document.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && !e.shiftKey && e.target.closest && e.target.closest(".ProseMirror")) lastSend = Date.now();
   }, true);
+  window.pockitMarkSend = function () { lastSend = Date.now(); };
   function hideStaticComposer() {
     // solo justo después de mandar (si no, nunca se toca: en otras pantallas podría ser la caja de verdad)
     var recent = Date.now() - lastSend < 4000;
