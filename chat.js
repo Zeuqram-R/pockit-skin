@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 47;
+  var VERSION = 48;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -114,6 +114,7 @@
     "[data-cds-part='composer-card'] .pk-sendbg.pk-sendbg.pk-stop{background-color:rgba(26,16,102,.6) !important;border:1px solid rgba(255,255,255,.25) !important}",
     /* v38: la barra lateral de claude.ai no se usa en Pockit (hay panel nativo de conversaciones) */
     ".pk-noside{display:none !important}",
+    ".pk-usage-hide{display:none !important}",
     ".pk-static-hide{opacity:0 !important;pointer-events:none !important}",
     /* v42: se puede hacer scroll dentro de la burbuja con texto largo (antes se movía el chat) */
     ".pk-dock.pk-dock .pk-edscroll, .pk-dock.pk-dock .pk-edscroll *{pointer-events:auto !important}",
@@ -763,6 +764,40 @@
     if (e.key === "Enter" && !e.shiftKey && e.target.closest && e.target.closest(".ProseMirror")) lastSend = Date.now();
   }, true);
   window.pockitMarkSend = function () { lastSend = Date.now(); };
+  // v48: el aviso de claude.ai "Has usado 81% de tu límite semanal · Obtener más uso" se esconde;
+  // el porcentaje se le pasa a la app (el anillo de uso de arriba a la izquierda lo muestra).
+  var lastUsageCheck = 0, lastUsageSent = "";
+  function hideUsageBanner() {
+    if (Date.now() - lastUsageCheck < 1200) return;
+    lastUsageCheck = Date.now();
+    var re = /(Has usado|You['’]ve used|You have used)\s+(\d{1,3})\s*%/i;
+    var nodes = document.querySelectorAll("p,span,div");
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      if (n.childElementCount > 2 || n.closest(".pk-usage-hide")) continue;
+      var tx = (n.textContent || "").trim();
+      if (tx.length > 140) continue;
+      var m = tx.match(re);
+      if (!m) continue;
+      if (n.closest("[data-testid='transcript-list'], [data-testid='chat-input'], .ProseMirror")) continue;
+      var kind = /seman|week/i.test(tx) ? "weekly" : (/sesi|session|5.?h/i.test(tx) ? "session" : "weekly");
+      var key = kind + m[2];
+      if (key !== lastUsageSent) {
+        lastUsageSent = key;
+        try { window.webkit.messageHandlers.pockit.postMessage({ type: "usageBanner", kind: kind, pct: parseInt(m[2], 10) }); } catch (e) {}
+      }
+      // subir hasta el contenedor del aviso (el que también tiene "Obtener más uso"), sin tocar el chat ni la caja
+      var el = n, box = null;
+      for (var k = 0; k < 8 && el.parentElement; k++) {
+        el = el.parentElement;
+        if (el.querySelector("[data-testid='chat-input'], .ProseMirror, [data-testid='transcript-list']")) break;
+        if (el.getBoundingClientRect().height > 140) break;
+        if (/(Obtener más uso|Get more usage)/i.test(el.textContent || "")) box = el;
+      }
+      (box || n).classList.add("pk-usage-hide");
+    }
+  }
+
   function hideStaticComposer() {
     // solo justo después de mandar (si no, nunca se toca: en otras pantallas podría ser la caja de verdad)
     var recent = Date.now() - lastSend < 4000;
@@ -779,7 +814,7 @@
   }
 
   function layoutChat() {
-    try { hideClaudeSidebar(); hideAgentPanel(); hideStaticComposer(); } catch (e) {}
+    try { hideClaudeSidebar(); hideAgentPanel(); hideStaticComposer(); hideUsageBanner(); } catch (e) {}
     try { syncGlass(); } catch (e) {}
     var card = document.querySelector("[data-cds-part='composer-card']");
     if (!card) return;
