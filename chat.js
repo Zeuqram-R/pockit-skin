@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 51;
+  var VERSION = 52;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -24,7 +24,7 @@
     "[data-cds-part='composer-card'] .ProseMirror p::before, [data-cds-part='composer-card'] .ProseMirror .is-empty::before, [data-cds-part='composer-card'] .ProseMirror .is-editor-empty::before{content:none !important;display:none !important}",
     "[data-testid='hub-composer-notices']{display:none !important}",
     "[data-testid='sidebar-compact-trigger']{display:none !important}",
-    "[data-testid='chat-header'], [data-testid='chat-footer-row'], [data-testid='action-bar-read-aloud'], [data-testid='action-bar-retry'], [data-testid='assistant-message'] [class*='group/status'], button[aria-label='Buena respuesta'], button[aria-label='Mala respuesta'], button[aria-label='Good response'], button[aria-label='Bad response']{display:none !important}",
+    "[data-testid='chat-header'], [data-testid='chat-footer-row'], [data-testid='action-bar-read-aloud'], [data-testid='action-bar-retry'], [data-testid='action-bar-copy'], [data-testid='assistant-message'] [class*='group/status'], button[aria-label='Buena respuesta'], button[aria-label='Mala respuesta'], button[aria-label='Good response'], button[aria-label='Bad response']{display:none !important}",
     "[data-testid='assistant-message'] .prose{background:#3826A6 !important;color:#FFFFFF !important;border-radius:20px 20px 20px 6px !important;padding:12px 16px !important;margin-right:auto !important;width:fit-content !important;max-width:90% !important;box-shadow:0 1px 0 rgba(0,0,0,.18) !important}",
     "[data-testid='assistant-message'] .prose *:not(pre):not(code):not(pre *){font-family:PockitFigtree, -apple-system, system-ui, sans-serif !important}",
     "[data-testid='assistant-message'] .prose p, [data-testid='assistant-message'] .prose li{color:#FFFFFF !important;font-size:16px !important;line-height:1.45 !important}",
@@ -134,10 +134,16 @@
     ".pk-msgmenu.pk-on button{animation:pkItem .3s ease-out both}",
     ".pk-msgmenu.pk-on button:nth-child(2){animation-delay:.06s}",
     ".pk-msgmenu-bg{transition:opacity .25s ease !important}",
+    // v52: el chat no se selecciona al mantener presionado (antes iOS seleccionaba todo y salían los agarradores lilas)
+    "[data-testid='pane-scroller'], [data-testid='pane-scroller'] *:not(textarea):not(input):not(.ProseMirror):not(.ProseMirror *){-webkit-user-select:none !important;user-select:none !important;-webkit-touch-callout:none !important}",
+    "[data-testid='user-message'] img, [data-testid='file-thumbnail'] img{cursor:zoom-in}",
     ".pk-msgmenu button{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;padding:13px 16px;background:none;border:0;color:#FFF4E6;font:500 16px PockitFigtree,-apple-system,system-ui,sans-serif;text-align:left}",
     ".pk-msgmenu-in button + button{border-top:1px solid rgba(255,255,255,.1)}",
     ".pk-msgmenu button:active{background:rgba(255,255,255,.12)}",
     ".pk-msgmenu svg{width:19px;height:19px;flex:none;stroke:#E9D5FF;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}",
+    ".pk-msgclone{z-index:2147483601 !important;pointer-events:none;animation:pkLift .3s cubic-bezier(.2,.9,.3,1.3) forwards;transition:opacity .2s ease, transform .2s ease}",
+    ".pk-msgclone.pk-off{transform:scale(1) !important;opacity:0}",
+    "@keyframes pkLift{0%{transform:scale(1)}60%{transform:scale(1.05)}100%{transform:scale(1.03)}}",
     ".pk-msglift{transition:transform .2s cubic-bezier(.3,1.4,.5,1) !important;transform:scale(1.03) !important;position:relative;z-index:2147483601 !important}",
     ".pk-static-hide{opacity:0 !important;pointer-events:none !important}",
     /* v42: se puede hacer scroll dentro de la burbuja con texto largo (antes se movía el chat) */
@@ -852,19 +858,48 @@
     var bg = document.querySelector(".pk-msgmenu-bg"), mn = document.querySelector(".pk-msgmenu");
     if (bg) bg.classList.remove("pk-on");
     if (mn) { mn.classList.remove("pk-on"); mn.classList.add("pk-off"); }
-    document.querySelectorAll(".pk-msglift").forEach(function (e) { e.classList.remove("pk-msglift"); });
-    setTimeout(function () { if (bg) bg.remove(); if (mn) mn.remove(); }, 260);
+    var cl = document.querySelector(".pk-msgclone");
+    if (cl) cl.classList.add("pk-off");
+    setTimeout(function () { if (bg) bg.remove(); if (mn) mn.remove(); if (cl) cl.remove(); }, 260);
   }
   function copyText(t) {
     try { window.webkit.messageHandlers.pockit.postMessage({ type: "copyText", text: t }); } catch (e) {}
     try { navigator.clipboard && navigator.clipboard.writeText(t); } catch (e) {}
   }
+  function clearSel() { try { var sl = window.getSelection(); if (sl && sl.rangeCount) sl.removeAllRanges(); } catch (e) {} }
+  document.addEventListener("selectstart", function (e) {
+    var t = e.target && e.target.nodeType === 1 ? e.target : (e.target && e.target.parentElement);
+    if (t && t.closest && t.closest("[data-testid='pane-scroller']") && !t.closest("textarea, input, .ProseMirror")) e.preventDefault();
+  }, true);
+  // v52: tocar una foto o archivo del historial lo abre en pantalla completa (vista nativa de iOS)
+  function b64(buf) { var s = "", a = new Uint8Array(buf), n = 0x8000; for (var i = 0; i < a.length; i += n) s += String.fromCharCode.apply(null, a.subarray(i, i + n)); return btoa(s); }
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t.closest || t.closest("[data-cds-part='composer-card'], .pk-dock, .pk-msgmenu")) return;
+    var img = t.closest("img");
+    var inMsg = t.closest("[data-testid='user-message'], [data-testid='file-thumbnail'], [data-testid='assistant-message']");
+    if (!img || !inMsg || !img.src || img.naturalWidth < 40) return;
+    e.preventDefault(); e.stopPropagation();
+    var name = (img.alt || "imagen").replace(/[^\w.\- ]+/g, "_").slice(0, 60) || "imagen";
+    fetch(img.src, { credentials: "include" }).then(function (r) {
+      var mime = r.headers.get("content-type") || "image/jpeg";
+      return r.arrayBuffer().then(function (buf) {
+        try { window.webkit.messageHandlers.pockit.postMessage({ type: "previewFile", name: name, mime: mime, b64: b64(buf) }); } catch (err) {}
+      });
+    }).catch(function () {});
+  }, true);
   function openMsgMenu(msg) {
     closeMsgMenu();
+    clearSel();
     var isUser = msg.matches("[data-testid='user-message']");
     var bubble = msg;
     var r = bubble.getBoundingClientRect();
-    bubble.classList.add("pk-msglift");
+    // copia nítida de la burbuja encima del fondo difuminado (como iMessage)
+    var bubSrc = bubble.querySelector(".pk-ubub, .pk-abub") || bubble;
+    var br = bubSrc.getBoundingClientRect();
+    var clone = bubSrc.cloneNode(true);
+    clone.classList.add("pk-msgclone");
+    clone.style.cssText += ";position:fixed;margin:0;top:" + br.top + "px;left:" + br.left + "px;width:" + br.width + "px;height:" + br.height + "px;box-sizing:border-box;overflow:hidden";
     try { window.webkit.messageHandlers.pockit.postMessage({ type: "haptic" }); } catch (e) {}
     var bg = document.createElement("div"); bg.className = "pk-msgmenu-bg";
     var mn = document.createElement("div"); mn.className = "pk-msgmenu";
@@ -888,7 +923,7 @@
     });
     bg.addEventListener("click", closeMsgMenu);
     bg.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
-    document.body.appendChild(bg); document.body.appendChild(mn);
+    document.body.appendChild(bg); document.body.appendChild(clone); document.body.appendChild(mn);
     var mw = mn.offsetWidth || 200, mh = mn.offsetHeight || 100, vh = window.innerHeight, vw = window.innerWidth;
     var below = r.bottom + 14 + mh < vh - 90;
     var top = below ? Math.min(r.bottom + 14, vh - mh - 10) : Math.max(r.top - mh - 14, 10);
@@ -909,7 +944,7 @@
     if (!msg) return;
     lpMsg = msg; lpStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     clearTimeout(lpTimer);
-    lpTimer = setTimeout(function () { lpTimer = null; if (lpMsg) openMsgMenu(lpMsg); }, 450);
+    lpTimer = setTimeout(function () { lpTimer = null; clearSel(); if (lpMsg) openMsgMenu(lpMsg); }, 450);
   }, { passive: true, capture: true });
   document.addEventListener("touchmove", function (e) {
     if (!lpTimer || !lpStart) return;
