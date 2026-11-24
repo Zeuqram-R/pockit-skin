@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 49;
+  var VERSION = 50;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -115,11 +115,18 @@
     /* v38: la barra lateral de claude.ai no se usa en Pockit (hay panel nativo de conversaciones) */
     ".pk-noside{display:none !important}",
     ".pk-usage-hide{display:none !important}",
-    // v49: debajo de cada mensaje tuyo, siempre visibles: copiar y editar
-    "[data-testid='user-message-actions']{opacity:1 !important;visibility:visible !important;pointer-events:auto !important;display:flex !important;justify-content:flex-end !important;gap:6px !important;margin-top:6px !important;transform:none !important}",
-    "[data-testid='user-message-actions'] *{opacity:1 !important;visibility:visible !important;pointer-events:auto !important}",
-    "[data-testid='user-message-actions'] button{width:34px !important;height:34px !important;border-radius:17px !important;background:rgba(203,132,248,.16) !important;color:#E9D5FF !important;display:inline-flex !important;align-items:center !important;justify-content:center !important}",
-    "[data-testid='user-message-actions'] button:active{background:rgba(203,132,248,.35) !important}",
+    // v50: estilo iMessage: los botones de claude.ai quedan escondidos (pero vivos) y se usan desde el menú de mantener presionado
+    "[data-testid='user-message-actions']{position:absolute !important;opacity:0 !important;pointer-events:none !important;width:1px !important;height:1px !important;overflow:hidden !important}",
+    "[data-testid='user-message'], [data-testid='assistant-message']{-webkit-touch-callout:none !important;-webkit-user-select:none !important;user-select:none !important}",
+    ".pk-msgmenu-bg{position:fixed;inset:0;z-index:2147483600;background:rgba(10,6,30,.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);opacity:0;transition:opacity .18s ease}",
+    ".pk-msgmenu-bg.pk-on{opacity:1}",
+    ".pk-msgmenu{position:fixed;z-index:2147483601;min-width:190px;border-radius:16px;overflow:hidden;background:rgba(43,26,140,.92);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.16);box-shadow:0 12px 40px rgba(0,0,0,.45);transform:scale(.85);opacity:0;transform-origin:var(--pk-origin,top right);transition:transform .2s cubic-bezier(.3,1.4,.5,1),opacity .15s ease}",
+    ".pk-msgmenu.pk-on{transform:scale(1);opacity:1}",
+    ".pk-msgmenu button{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;padding:13px 16px;background:none;border:0;color:#FFF4E6;font:500 16px PockitFigtree,-apple-system,system-ui,sans-serif;text-align:left}",
+    ".pk-msgmenu button + button{border-top:1px solid rgba(255,255,255,.1)}",
+    ".pk-msgmenu button:active{background:rgba(255,255,255,.12)}",
+    ".pk-msgmenu svg{width:19px;height:19px;flex:none;stroke:#E9D5FF;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}",
+    ".pk-msglift{transition:transform .2s cubic-bezier(.3,1.4,.5,1) !important;transform:scale(1.03) !important;position:relative;z-index:2147483601 !important}",
     ".pk-static-hide{opacity:0 !important;pointer-events:none !important}",
     /* v42: se puede hacer scroll dentro de la burbuja con texto largo (antes se movía el chat) */
     ".pk-dock.pk-dock .pk-edscroll, .pk-dock.pk-dock .pk-edscroll *{pointer-events:auto !important}",
@@ -811,6 +818,93 @@
       (box || n).classList.add("pk-usage-hide");
     }
   }
+
+  // v50: mantener presionado un mensaje (como en iMessage) abre Copiar / Editar
+  var lpTimer = null, lpStart = null, lpMsg = null;
+  var ICON_COPY = '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
+  var ICON_EDIT = '<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
+  function msgActions(msg) {
+    var el = msg;
+    for (var k = 0; k < 7 && el; k++) {
+      var a = el.querySelector && el.querySelector("[data-testid='user-message-actions']");
+      if (a) return a;
+      el = el.parentElement;
+    }
+    return null;
+  }
+  function findBtn(box, re) {
+    if (!box) return null;
+    return Array.from(box.querySelectorAll("button")).find(function (b) { return re.test((b.getAttribute("aria-label") || "") + " " + (b.getAttribute("data-testid") || "") + " " + (b.textContent || "")); }) || null;
+  }
+  function closeMsgMenu() {
+    var bg = document.querySelector(".pk-msgmenu-bg"), mn = document.querySelector(".pk-msgmenu");
+    if (bg) bg.classList.remove("pk-on");
+    if (mn) mn.classList.remove("pk-on");
+    document.querySelectorAll(".pk-msglift").forEach(function (e) { e.classList.remove("pk-msglift"); });
+    setTimeout(function () { if (bg) bg.remove(); if (mn) mn.remove(); }, 200);
+  }
+  function copyText(t) {
+    try { window.webkit.messageHandlers.pockit.postMessage({ type: "copyText", text: t }); } catch (e) {}
+    try { navigator.clipboard && navigator.clipboard.writeText(t); } catch (e) {}
+  }
+  function openMsgMenu(msg) {
+    closeMsgMenu();
+    var isUser = msg.matches("[data-testid='user-message']");
+    var bubble = msg;
+    var r = bubble.getBoundingClientRect();
+    bubble.classList.add("pk-msglift");
+    try { window.webkit.messageHandlers.pockit.postMessage({ type: "haptic" }); } catch (e) {}
+    var bg = document.createElement("div"); bg.className = "pk-msgmenu-bg";
+    var mn = document.createElement("div"); mn.className = "pk-msgmenu";
+    function add(label, icon, fn) {
+      var b = document.createElement("button"); b.type = "button";
+      b.innerHTML = "<span>" + label + "</span>" + icon;
+      b.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); closeMsgMenu(); setTimeout(fn, 60); });
+      mn.appendChild(b);
+    }
+    var es = (document.documentElement.lang || navigator.language || "es").indexOf("es") === 0;
+    add(es ? "Copiar" : "Copy", ICON_COPY, function () {
+      var acts = isUser ? msgActions(msg) : null;
+      var cb = findBtn(acts, /copi|copy/i);
+      if (cb) cb.click();
+      copyText((msg.innerText || "").trim());
+    });
+    if (isUser) add(es ? "Editar" : "Edit", ICON_EDIT, function () {
+      var eb = findBtn(msgActions(msg), /edit/i);
+      if (eb) eb.click();
+    });
+    bg.addEventListener("click", closeMsgMenu);
+    bg.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
+    document.body.appendChild(bg); document.body.appendChild(mn);
+    var mw = mn.offsetWidth || 200, mh = mn.offsetHeight || 100, vh = window.innerHeight, vw = window.innerWidth;
+    var below = r.bottom + 10 + mh < vh - 90;
+    var top = below ? Math.min(r.bottom + 10, vh - mh - 10) : Math.max(r.top - mh - 10, 10);
+    var left = isUser ? Math.max(10, Math.min(r.right - mw, vw - mw - 10)) : Math.max(10, Math.min(r.left, vw - mw - 10));
+    mn.style.top = top + "px"; mn.style.left = left + "px";
+    mn.style.setProperty("--pk-origin", (below ? "top " : "bottom ") + (isUser ? "right" : "left"));
+    requestAnimationFrame(function () { bg.classList.add("pk-on"); mn.classList.add("pk-on"); });
+  }
+  document.addEventListener("touchstart", function (e) {
+    if (e.touches.length !== 1) { clearTimeout(lpTimer); return; }
+    var t = e.target;
+    if (!t.closest || t.closest(".pk-msgmenu, textarea, input, [contenteditable='true'], a, button")) return;
+    var msg = t.closest("[data-testid='user-message'], [data-testid='assistant-message']");
+    if (!msg) return;
+    lpMsg = msg; lpStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    clearTimeout(lpTimer);
+    lpTimer = setTimeout(function () { lpTimer = null; if (lpMsg) openMsgMenu(lpMsg); }, 450);
+  }, { passive: true, capture: true });
+  document.addEventListener("touchmove", function (e) {
+    if (!lpTimer || !lpStart) return;
+    var dx = e.touches[0].clientX - lpStart.x, dy = e.touches[0].clientY - lpStart.y;
+    if (dx * dx + dy * dy > 100) { clearTimeout(lpTimer); lpTimer = null; }
+  }, { passive: true, capture: true });
+  ["touchend", "touchcancel"].forEach(function (ev) {
+    document.addEventListener(ev, function () { clearTimeout(lpTimer); lpTimer = null; }, { passive: true, capture: true });
+  });
+  document.addEventListener("contextmenu", function (e) {
+    if (e.target.closest && e.target.closest("[data-testid='user-message'], [data-testid='assistant-message']")) e.preventDefault();
+  }, true);
 
   // v49: si claude.ai avisa que la conversación no existe, la app la quita de la barra lateral
   var missingSent = "";
