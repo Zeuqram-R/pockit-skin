@@ -3,7 +3,7 @@
    y el CSS de abajo solo usa esas clases. Si claude.ai cambia, se ajustan los buscadores de findUser/findAI/findComposer.
    Diagnóstico: Pockit > Ajustes > Diagnóstico del skin (incluye "chat"). */
 (function () {
-  var VERSION = 53;
+  var VERSION = 54;
   // Si ya corre una versión igual o más nueva, no hacer nada. Si corre una vieja, la apagamos y tomamos su lugar.
   if (window.__pockitChat && window.__pockitChat.version >= VERSION) return;
   if (window.__pockitChat && typeof window.__pockitChat.stop === "function") { try { window.__pockitChat.stop(); } catch (e) {} }
@@ -134,6 +134,20 @@
     ".pk-msgmenu.pk-on button{animation:pkItem .3s ease-out both}",
     ".pk-msgmenu.pk-on button:nth-child(2){animation-delay:.06s}",
     ".pk-msgmenu-bg{transition:opacity .25s ease !important}",
+    // v54: pedidos de permiso (ej. "Claude quiere ejecutar un comando") como mensaje de Marisol con respuestas rápidas
+    ".pk-perm-hidden{display:none !important}",
+    ".pk-perm{align-self:flex-start;max-width:86%;margin:6px 0 10px;padding:11px 14px 12px;background:#3826A6;color:#FFF4E6;border-radius:20px 20px 20px 6px;box-shadow:0 1px 0 rgba(0,0,0,.18);font:400 16px/1.38 PockitFigtree,-apple-system,system-ui,sans-serif;animation:pkPop .42s cubic-bezier(.2,.9,.3,1.2) both;transform-origin:bottom left}",
+    ".pk-perm-q{font-weight:600;margin-bottom:3px}",
+    ".pk-perm-what{color:#E5D6F2}",
+    ".pk-perm-warn{margin-top:6px;color:#FFB547;font-size:14px}",
+    ".pk-perm-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}",
+    ".pk-perm-row button{border:0;border-radius:18px;padding:8px 16px;font:600 15px PockitFigtree,-apple-system,system-ui,sans-serif;transition:transform .12s ease,opacity .2s ease}",
+    ".pk-perm-row button:active{transform:scale(.94)}",
+    ".pk-perm-yes{background:#CB84F8;color:#1A1066}",
+    ".pk-perm-no{background:rgba(255,255,255,.12);color:#FFF4E6;border:1px solid rgba(255,255,255,.22) !important}",
+    ".pk-perm-more{background:none !important;color:#C9B6F0 !important;padding:8px 4px !important;font-weight:500 !important;text-decoration:underline}",
+    ".pk-perm pre{white-space:pre-wrap;word-break:break-word;margin:8px 0 0;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,.25);color:#E5D6F2;font:12px/1.4 ui-monospace,Menlo,monospace;max-height:220px;overflow:auto}",
+    ".pk-perm-done{margin-top:8px;color:#C9B6F0;font-size:14px}",
     // v52: el chat no se selecciona al mantener presionado (antes iOS seleccionaba todo y salían los agarradores lilas)
     "[data-testid='pane-scroller'], [data-testid='pane-scroller'] *:not(textarea):not(input):not(.ProseMirror):not(.ProseMirror *){-webkit-user-select:none !important;user-select:none !important;-webkit-touch-callout:none !important}",
     "[data-testid='user-message'] img, [data-testid='file-thumbnail'] img{cursor:zoom-in}",
@@ -147,8 +161,10 @@
     ".pk-msglift{transition:transform .2s cubic-bezier(.3,1.4,.5,1) !important;transform:scale(1.03) !important;position:relative;z-index:2147483601 !important}",
     ".pk-static-hide{opacity:0 !important;pointer-events:none !important}",
     // v53: a veces claude.ai deja su caja gris "Responder" (sin la caja de verdad); ahora se ve como nuestra burbuja rosa
-    "[data-testid='static-composer-input']{background:rgba(203,132,248,.72) !important;-webkit-backdrop-filter:blur(18px) saturate(1.5) !important;backdrop-filter:blur(18px) saturate(1.5) !important;border:1px solid rgba(255,255,255,.3) !important;border-radius:20px 20px 6px 20px !important;box-shadow:0 2px 12px rgba(0,0,0,.18) !important;color:#1A1066 !important}",
-    "[data-testid='static-composer-input'] *{background:transparent !important;color:rgba(26,16,102,.62) !important;border-color:transparent !important}",
+    ".pk-static-box, [data-testid='static-composer-input']{background:rgba(203,132,248,.72) !important;-webkit-backdrop-filter:blur(18px) saturate(1.5) !important;backdrop-filter:blur(18px) saturate(1.5) !important;border:1px solid rgba(255,255,255,.3) !important;border-radius:20px 20px 6px 20px !important;box-shadow:0 2px 12px rgba(0,0,0,.18) !important;color:#1A1066 !important}",
+    ".pk-static-box *, [data-testid='static-composer-input'] *{background:transparent !important;color:rgba(26,16,102,.62) !important;border-color:transparent !important;box-shadow:none !important}",
+    // v54: mientras se envía no se ven las etiquetas ⟦device⟧ ⟦lang⟧ dentro de la burbuja
+    ".pk-sending .ProseMirror, .pk-sending .ProseMirror *{color:transparent !important;caret-color:transparent !important}",
     // el botón de copiar de las respuestas de Marisol (se copia manteniendo presionado)
     "[data-testid='pane-scroller'] button[aria-label='Copiar' i]:not([data-testid='user-message-actions'] *), [data-testid='pane-scroller'] button[aria-label='Copy' i]:not([data-testid='user-message-actions'] *), [data-testid='pane-scroller'] button[aria-label*='Copiar respuesta' i], [data-testid='pane-scroller'] button[aria-label*='Copy response' i]{display:none !important}",
     /* v42: se puede hacer scroll dentro de la burbuja con texto largo (antes se movía el chat) */
@@ -979,23 +995,89 @@
     }
   }
 
+  // v54: la caja provisional de claude.ai ("Responder", gris) se pinta como nuestra burbuja rosa siempre.
+  // Se busca la caja de verdad (el antepasado con el mismo ancho y alto bajo), no solo el texto de adentro.
   function hideStaticComposer() {
-    // solo justo después de mandar (si no, nunca se toca: en otras pantallas podría ser la caja de verdad)
-    var recent = Date.now() - lastSend < 4000;
-    if (!recent) { document.querySelectorAll(".pk-static-hide").forEach(function (x) { x.classList.remove("pk-static-hide"); }); return; }
     var inp = document.querySelector("[data-testid='static-composer-input']");
     if (!inp) return;
-    var el = inp;
-    for (var k = 0; k < 10 && el.parentElement && el.parentElement !== document.body; k++) {
-      var pos = getComputedStyle(el).position;
-      if (pos === "sticky" || pos === "fixed" || pos === "absolute") break;
-      el = el.parentElement;
+    var box = inp, r0 = inp.getBoundingClientRect();
+    for (var k = 0; k < 6 && box.parentElement && box.parentElement !== document.body; k++) {
+      var pr = box.parentElement.getBoundingClientRect();
+      if (pr.height > 90 || Math.abs(pr.width - r0.width) > 40) break;
+      box = box.parentElement;
     }
-    if (!el.querySelector(".ProseMirror")) el.classList.add("pk-static-hide");
+    if (!box.classList.contains("pk-static-box")) box.classList.add("pk-static-box");
+  }
+
+  // v54: el pedido de permiso de claude.ai se esconde y Marisol lo pregunta como mensaje (los botones reales se tocan por dentro)
+  var ALLOW_RE = /^(permitir una vez|allow once|permitir|allow)$/i, DENY_RE = /^(rechazar|deny|denegar|no permitir)$/i;
+  function permCards() {
+    var out = [];
+    document.querySelectorAll("button").forEach(function (b) {
+      var t = (b.textContent || "").trim().replace(/\s+/g, " ");
+      if (!ALLOW_RE.test(t) || b.closest(".pk-perm, .pk-dock, [data-cds-part='composer-card']")) return;
+      var card = b;
+      for (var k = 0; k < 8 && card.parentElement; k++) {
+        card = card.parentElement;
+        var hasDeny = Array.from(card.querySelectorAll("button")).some(function (x) { return DENY_RE.test((x.textContent || "").trim().replace(/\s+/g, " ")); });
+        if (hasDeny) { out.push({ card: card, allow: b }); return; }
+      }
+    });
+    return out;
+  }
+  function permBubble() {
+    var es = (document.documentElement.lang || navigator.language || "es").indexOf("es") === 0;
+    var seen = [];
+    permCards().forEach(function (pc) {
+      var card = pc.card; seen.push(card);
+      var id = card.dataset.pkPerm || (card.dataset.pkPerm = "p" + Math.random().toString(36).slice(2, 8));
+      card.classList.add("pk-perm-hidden");
+      if (document.getElementById("pk-" + id)) return;
+      var lines = (card.innerText || "").split("\n").map(function (x) { return x.trim(); }).filter(Boolean)
+        .filter(function (x) { return !ALLOW_RE.test(x) && !DENY_RE.test(x) && !/^(re|cha|zar)$/i.test(x); });
+      var title = lines[0] || "";
+      var what = lines.find(function (x, i) { return i > 0 && x.length < 120 && !/says:|dice:|dangerous|peligros/i.test(x) && !/[;&|$]|\s-{1,2}\w/.test(x); }) || "";
+      var warn = lines.some(function (x) { return /dangerous|peligros|warning|advertencia/i.test(x); });
+      var isCmd = /comando|command|ejecutar|run/i.test(title);
+      var b = document.createElement("div"); b.className = "pk-perm"; b.id = "pk-" + id;
+      var q = document.createElement("div"); q.className = "pk-perm-q";
+      q.textContent = es ? (isCmd ? "Oye, ¿me dejás correr esto?" : "Oye, ¿me dejás hacer esto?") : (isCmd ? "Hey, can I run this?" : "Hey, can I do this?");
+      b.appendChild(q);
+      if (what) { var w = document.createElement("div"); w.className = "pk-perm-what"; w.textContent = what; b.appendChild(w); }
+      if (warn) { var wn = document.createElement("div"); wn.className = "pk-perm-warn"; wn.textContent = es ? "⚠️ Trae una advertencia: mirá los detalles antes." : "⚠️ It comes with a warning: check the details first."; b.appendChild(wn); }
+      var pre = document.createElement("pre"); pre.textContent = lines.slice(1).join("\n"); pre.style.display = "none";
+      var row = document.createElement("div"); row.className = "pk-perm-row";
+      function btn(cls, label, fn) { var x = document.createElement("button"); x.type = "button"; x.className = cls; x.textContent = label; x.addEventListener("click", function (e) { e.preventDefault(); e.stopPropagation(); fn(); }); row.appendChild(x); return x; }
+      function answer(yes) {
+        var real = yes ? pc.allow : Array.from(card.querySelectorAll("button")).find(function (x) { return DENY_RE.test((x.textContent || "").trim().replace(/\s+/g, " ")); });
+        try { window.webkit.messageHandlers.pockit.postMessage({ type: "haptic" }); } catch (e) {}
+        if (real) real.click();
+        row.remove();
+        var d = document.createElement("div"); d.className = "pk-perm-done";
+        d.textContent = yes ? (es ? "✓ Le diste permiso" : "✓ You allowed it") : (es ? "✕ Le dijiste que no" : "✕ You said no");
+        b.appendChild(d);
+      }
+      btn("pk-perm-yes", es ? "Dale" : "Go ahead", function () { answer(true); });
+      btn("pk-perm-no", es ? "Mejor no" : "Better not", function () { answer(false); });
+      btn("pk-perm-more", es ? "Ver detalles" : "Details", function () { pre.style.display = pre.style.display === "none" ? "block" : "none"; });
+      b.appendChild(row); b.appendChild(pre);
+      card.parentElement.insertBefore(b, card.nextSibling);
+    });
+    // si claude.ai ya quitó el pedido, la burbuja sin contestar se va
+    document.querySelectorAll(".pk-perm").forEach(function (b) {
+      var id = b.id.slice(3);
+      var card = document.querySelector("[data-pk-perm='" + id + "']");
+      if ((!card || !card.isConnected) && b.querySelector(".pk-perm-row")) b.remove();
+    });
   }
 
   function layoutChat() {
     try { hideClaudeSidebar(); hideAgentPanel(); hideStaticComposer(); hideUsageBanner(); checkMissingChat(); } catch (e) {}
+    try { permBubble(); } catch (e) {}
+    if (!window.__pkReadySent && document.querySelector(".pk-dock")) {
+      window.__pkReadySent = 1;
+      setTimeout(function () { try { window.webkit.messageHandlers.pockit.postMessage({ type: "chatReady" }); } catch (e) {} }, 150);
+    }
     try { syncGlass(); } catch (e) {}
     var card = document.querySelector("[data-cds-part='composer-card']");
     if (!card) return;
@@ -1247,7 +1329,20 @@
   }
 
   try { tag(); } catch (e) {}
-  var observer = new MutationObserver(schedule);
+  // v54: tu mensaje nuevo se pinta rosa de una vez (antes salía apagado medio segundo)
+  var observer = new MutationObserver(function (muts) {
+    for (var i = 0; i < muts.length; i++) {
+      var ad = muts[i].addedNodes;
+      for (var j = 0; j < ad.length; j++) {
+        var n = ad[j];
+        if (n.nodeType === 1 && (n.matches && n.matches("[data-testid='user-message']") || n.querySelector && n.querySelector("[data-testid='user-message']"))) {
+          clearTimeout(timer); timer = null; try { tag(); } catch (e) {}
+          return;
+        }
+      }
+    }
+    schedule();
+  });
   observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-is-streaming"] });
   window.__pockitChat.stop = function () {
     observer.disconnect();
